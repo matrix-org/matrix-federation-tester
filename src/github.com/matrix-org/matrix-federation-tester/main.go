@@ -12,7 +12,13 @@ import (
 	"time"
 )
 
+// HandleReport handles an HTTP request for a JSON report for matrix server.
+// GET /report?server_name=matrix.org&tls_sni=whatever request.
 func HandleReport(w http.ResponseWriter, req *http.Request) {
+	if req.Method != "GET" {
+		w.WriteHeader(405)
+		fmt.Printf("Unsupported method.")
+	}
 	serverName := req.URL.Query().Get("server_name")
 	tlsSNI := req.URL.Query().Get("tls_sni")
 	result, err := JSONReport(serverName, tlsSNI)
@@ -26,6 +32,7 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// JSONReport generates a JSON formatted report for a matrix server.
 func JSONReport(serverName, sni string) ([]byte, error) {
 	results, err := Report(serverName, sni)
 	if err != nil {
@@ -46,31 +53,36 @@ func main() {
 	http.ListenAndServe(os.Getenv("BIND_ADDRESS"), nil)
 }
 
+// A ServerReport is a report for a matrix server.
 type ServerReport struct {
-	DNSResult         matrixfederation.DNSResult
-	ConnectionReports map[string]ConnectionReport
-	ConnectionErrors  map[string]error
+	DNSResult         matrixfederation.DNSResult  // The result of looking up the server in DNS.
+	ConnectionReports map[string]ConnectionReport // The report for each server address we could connect to.
+	ConnectionErrors  map[string]error            // The errors for each server address we couldn't connect to.
 }
 
+// A ConnectionReport is information about a connection made to a matrix server.
 type ConnectionReport struct {
-	Certificates []X509CertSummary
-	Cipher       CipherSummary
-	Keys         *json.RawMessage
-	Checks       matrixfederation.KeyChecks
+	Certificates []X509CertSummary          // Summary information for each x509 certificate served up by this server.
+	Cipher       CipherSummary              // Summary infomration on the TLS cipher used by this server.
+	Keys         *json.RawMessage           // The server key JSON returned by this server.
+	Checks       matrixfederation.KeyChecks // The checks applied to the server and their results.
 }
 
+// A CipherSummary is a summary of the TLS version and Cipher used in a TLS connection.
 type CipherSummary struct {
-	Version     string
-	CipherSuite string
+	Version     string // Human readable description of the TLS version.
+	CipherSuite string // Human readable description of the TLS cipher.
 }
 
+// A X509CertSummary is a summary of the information in a X509 certificate.
 type X509CertSummary struct {
-	SubjectCommonName string
-	IssuerCommonName  string
-	Sha256Fingerprint matrixfederation.Base64String
-	DNSNames          []string
+	SubjectCommonName string                        // The common name of the subject.
+	IssuerCommonName  string                        // The common name of the issuer.
+	Sha256Fingerprint matrixfederation.Base64String // The SHA256 fingerprint of the certificate.
+	DNSNames          []string                      // The DNS names this certificate is valid for.
 }
 
+// Report creates a ServerReport for a matrix server.
 func Report(serverName string, sni string) (*ServerReport, error) {
 	var report ServerReport
 	dnsResult, err := matrixfederation.LookupServer(serverName)
@@ -108,22 +120,25 @@ func Report(serverName string, sni string) (*ServerReport, error) {
 	return &report, nil
 }
 
+// A ReportError is a version of a golang error that is human readable when serialised as JSON.
 type ReportError struct {
-	Message string
+	Message string // The result of err.Error()
 }
 
+// Error implements the error interface.
 func (e ReportError) Error() string {
 	return e.Message
 }
 
+// Replace a golang error with a human readable c
 func asReportError(err error) error {
 	if err != nil {
 		return ReportError{err.Error()}
-	} else {
-		return nil
 	}
+	return nil
 }
 
+// touchUpReport converts all the errors in a ServerReport into forms that will be human readable after JSON serialisation.
 func (report *ServerReport) touchUpReport() {
 	report.DNSResult.SRVError = asReportError(report.DNSResult.SRVError)
 	for host, hostReport := range report.DNSResult.Hosts {
@@ -135,12 +150,13 @@ func (report *ServerReport) touchUpReport() {
 	}
 }
 
+// enumToString converts a uint16 enum into a human readable string using a fixed mapping.
+// If no mapping can be found then return a "UNKNOWN[0x%x]" string with the raw enum.
 func enumToString(names map[uint16]string, value uint16) string {
 	if name, ok := names[value]; ok {
 		return name
-	} else {
-		return fmt.Sprintf("UNKNOWN[0x%x]", value)
 	}
+	return fmt.Sprintf("UNKNOWN[0x%x]", value)
 }
 
 var (
@@ -166,6 +182,7 @@ var (
 		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
 		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384: "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
 		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:   "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+		// go1.5.3 doesn't have these enums, but they appear in more recent version.
 		// tls.TLS_RSA_WITH_AES_128_GCM_SHA256:         "TLS_RSA_WITH_AES_128_GCM_SHA256",
 		// tls.TLS_RSA_WITH_AES_256_GCM_SHA384:         "TLS_RSA_WITH_AES_256_GCM_SHA384",
 	}
