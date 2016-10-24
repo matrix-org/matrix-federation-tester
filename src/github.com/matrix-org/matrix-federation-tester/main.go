@@ -62,10 +62,12 @@ type ServerReport struct {
 
 // A ConnectionReport is information about a connection made to a matrix server.
 type ConnectionReport struct {
-	Certificates []X509CertSummary          // Summary information for each x509 certificate served up by this server.
-	Cipher       CipherSummary              // Summary infomration on the TLS cipher used by this server.
-	Keys         *json.RawMessage           // The server key JSON returned by this server.
-	Checks       matrixfederation.KeyChecks // The checks applied to the server and their results.
+	Certificates          []X509CertSummary                        // Summary information for each x509 certificate served up by this server.
+	Cipher                CipherSummary                            // Summary infomration on the TLS cipher used by this server.
+	Keys                  *json.RawMessage                         // The server key JSON returned by this server.
+	Checks                matrixfederation.KeyChecks               // The checks applied to the server and their results.
+	ED25519VerifyKeys     map[string]matrixfederation.Base64String // The Verify keys for this server or nil if the checks were not ok.
+	SHA256TLSFingerprints []matrixfederation.Base64String          // The SHA256 tls fingerprints for this server or nil if the checks were not ok.
 }
 
 // A CipherSummary is a summary of the TLS version and Cipher used in a TLS connection.
@@ -114,7 +116,7 @@ func Report(serverName string, sni string) (*ServerReport, error) {
 		}
 		connReport.Cipher.Version = enumToString(tlsVersions, connState.Version)
 		connReport.Cipher.CipherSuite = enumToString(tlsCipherSuites, connState.CipherSuite)
-		connReport.Checks, _, _ = matrixfederation.CheckKeys(serverName, now, *keys, connState)
+		connReport.Checks, connReport.ED25519VerifyKeys, connReport.SHA256TLSFingerprints = matrixfederation.CheckKeys(serverName, now, *keys, connState)
 		raw := json.RawMessage(keys.Raw)
 		connReport.Keys = &raw
 		report.ConnectionReports[addr] = connReport
