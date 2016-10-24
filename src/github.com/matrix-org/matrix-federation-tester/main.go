@@ -78,7 +78,7 @@ type CipherSummary struct {
 type X509CertSummary struct {
 	SubjectCommonName string                        // The common name of the subject.
 	IssuerCommonName  string                        // The common name of the issuer.
-	Sha256Fingerprint matrixfederation.Base64String // The SHA256 fingerprint of the certificate.
+	SHA256Fingerprint matrixfederation.Base64String // The SHA256 fingerprint of the certificate.
 	DNSNames          []string                      // The DNS names this certificate is valid for.
 }
 
@@ -105,10 +105,10 @@ func Report(serverName string, sni string) (*ServerReport, error) {
 		for _, cert := range connState.PeerCertificates {
 			fingerprint := sha256.Sum256(cert.Raw)
 			summary := X509CertSummary{
-				cert.Subject.CommonName,
-				cert.Issuer.CommonName,
-				fingerprint[:],
-				cert.DNSNames,
+				SubjectCommonName: cert.Subject.CommonName,
+				IssuerCommonName:  cert.Issuer.CommonName,
+				SHA256Fingerprint: fingerprint[:],
+				DNSNames:          cert.DNSNames,
 			}
 			connReport.Certificates = append(connReport.Certificates, summary)
 		}
