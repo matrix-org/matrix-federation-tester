@@ -90,7 +90,9 @@ func Report(serverName string, sni string) (*ServerReport, error) {
 		return nil, err
 	}
 	report.DNSResult = *dnsResult
+	// Map of network address to report.
 	report.ConnectionReports = make(map[string]ConnectionReport)
+	// Map of network address to connection error.
 	report.ConnectionErrors = make(map[string]error)
 	now := time.Now()
 	for _, addr := range report.DNSResult.Addrs {
