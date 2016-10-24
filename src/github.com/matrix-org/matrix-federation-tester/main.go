@@ -64,7 +64,7 @@ type ServerReport struct {
 // A ConnectionReport is information about a connection made to a matrix server.
 type ConnectionReport struct {
 	Certificates          []X509CertSummary                        // Summary information for each x509 certificate served up by this server.
-	Cipher                CipherSummary                            // Summary infomration on the TLS cipher used by this server.
+	Cipher                CipherSummary                            // Summary information on the TLS cipher used by this server.
 	Keys                  *json.RawMessage                         // The server key JSON returned by this server.
 	Checks                matrixfederation.KeyChecks               // The checks applied to the server and their results.
 	ED25519VerifyKeys     map[string]matrixfederation.Base64String // The Verify keys for this server or nil if the checks were not ok.
@@ -135,7 +135,7 @@ func (e ReportError) Error() string {
 	return e.Message
 }
 
-// Replace a golang error with a human readable c
+// Replace a golang error with an error that is human readable when serialised as JSON.
 func asReportError(err error) error {
 	if err != nil {
 		return ReportError{err.Error()}
