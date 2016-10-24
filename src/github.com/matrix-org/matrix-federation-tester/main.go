@@ -18,6 +18,7 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
 		w.WriteHeader(405)
 		fmt.Printf("Unsupported method.")
+		return
 	}
 	serverName := req.URL.Query().Get("server_name")
 	tlsSNI := req.URL.Query().Get("tls_sni")
