@@ -1,0 +1,18 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/matrix-org/golang-matrixfederation",
+			"repository": "https://github.com/matrix-org/golang-matrixfederation",
+			"revision": "d509d58afb3e5e7619700548a95ffe1e21e12f89",
+			"branch": "master"
+		},
+		{
+			"importpath": "golang.org/x/crypto/ed25519",
+			"repository": "https://go.googlesource.com/crypto",
+			"revision": "3c0d69f1777220f1a1d2ec373cb94a282f03eb42",
+			"branch": "master",
+			"path": "/ed25519"
+		}
+	]
+}
