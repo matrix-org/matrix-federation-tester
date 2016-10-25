@@ -7,13 +7,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/matrix-org/golang-matrixfederation"
+	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"time"
 )
 
 // HandleReport handles an HTTP request for a JSON report for matrix server.
-// GET /report?server_name=matrix.org&tls_sni=whatever request.
+// GET /api/report?server_name=matrix.org&tls_sni=whatever request.
 func HandleReport(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
 		w.WriteHeader(405)
@@ -50,7 +52,8 @@ func JSONReport(serverName, sni string) ([]byte, error) {
 }
 
 func main() {
-	http.HandleFunc("/report", HandleReport)
+	http.HandleFunc("/api/report", prometheus.InstrumentHandlerFunc("report", HandleReport))
+	http.Handle("/metrics", prometheus.Handler())
 	http.ListenAndServe(os.Getenv("BIND_ADDRESS"), nil)
 }
 
