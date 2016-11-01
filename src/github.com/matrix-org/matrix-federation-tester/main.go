@@ -17,6 +17,14 @@ import (
 // HandleReport handles an HTTP request for a JSON report for matrix server.
 // GET /api/report?server_name=matrix.org&tls_sni=whatever request.
 func HandleReport(w http.ResponseWriter, req *http.Request) {
+	// Set unrestricted Access-Control headers so that this API can be used by
+	// web apps running in browsers.
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+	if req.Method == "OPTIONS" {
+		return
+	}
 	if req.Method != "GET" {
 		w.WriteHeader(405)
 		fmt.Printf("Unsupported method.")
