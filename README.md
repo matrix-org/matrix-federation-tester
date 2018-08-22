@@ -19,3 +19,12 @@ Running
 ```bash
 BIND_ADDRESS=:8080 bin/matrix-federation-tester
 ```
+
+Using
+-----
+
+The federation tester may be accessed using the following templated URL. Please replace `<server_name>` with your server name (eg: `matrix.org`).
+
+```
+https://matrix.org/federationtester/api/report?server_name=<server_name>
+```
