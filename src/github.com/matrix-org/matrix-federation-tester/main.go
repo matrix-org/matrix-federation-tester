@@ -76,13 +76,13 @@ type ServerReport struct {
 
 // A ConnectionReport is information about a connection made to a matrix server.
 type ConnectionReport struct {
-	Certificates          []X509CertSummary                        // Summary information for each x509 certificate served up by this server.
-	Cipher                CipherSummary                            // Summary information on the TLS cipher used by this server.
-	Keys                  *json.RawMessage                         // The server key JSON returned by this server.
-	Checks                matrixfederation.KeyChecks               // The checks applied to the server and their results.
-	Ed25519VerifyKeys     map[string]matrixfederation.Base64String // The Verify keys for this server or nil if the checks were not ok.
-	SHA256TLSFingerprints []matrixfederation.Base64String          // The SHA256 tls fingerprints for this server or nil if the checks were not ok.
-	ValidCertificates     bool                                     // The X509 certificates have been verified by the system root CAs.
+	Certificates          []X509CertSummary                                          // Summary information for each x509 certificate served up by this server.
+	Cipher                CipherSummary                                              // Summary information on the TLS cipher used by this server.
+	Keys                  *json.RawMessage                                           // The server key JSON returned by this server.
+	Checks                gomatrixserverlib.KeyChecks                                // The checks applied to the server and their results.
+	Ed25519VerifyKeys     map[gomatrixserverlib.KeyID]gomatrixserverlib.Base64String // The Verify keys for this server or nil if the checks were not ok.
+	SHA256TLSFingerprints []gomatrixserverlib.Base64String                           // The SHA256 tls fingerprints for this server or nil if the checks were not ok.
+	ValidCertificates     bool                                                       // The X509 certificates have been verified by the system root CAs.
 }
 
 // A CipherSummary is a summary of the TLS version and Cipher used in a TLS connection.
@@ -133,7 +133,7 @@ func Report(serverName gomatrixserverlib.ServerName, sni string) (*ServerReport,
 		}
 
 		if directCert != nil {
-			valid, _ := matrixfederation.IsValidCertificate(serverName, directCert, intermediateCerts)
+			valid, _ := gomatrixserverlib.IsValidCertificate(serverName, directCert, intermediateCerts)
 			connReport.ValidCertificates = valid
 		}
 
