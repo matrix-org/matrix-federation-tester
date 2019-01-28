@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	matrixfederation "github.com/matrix-org/gomatrixserverlib"
+	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -34,7 +34,7 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 	}
 	serverName := req.URL.Query().Get("server_name")
 	tlsSNI := req.URL.Query().Get("tls_sni")
-	result, err := JSONReport(serverName, tlsSNI)
+	result, err := JSONReport(gomatrixserverlib.ServerName(serverName), tlsSNI)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Printf("Error Generating Report: %q", err.Error())
@@ -46,7 +46,7 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 }
 
 // JSONReport generates a JSON formatted report for a matrix server.
-func JSONReport(serverName, sni string) ([]byte, error) {
+func JSONReport(serverName gomatrixserverlib.ServerName, sni string) ([]byte, error) {
 	results, err := Report(serverName, sni)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func main() {
 
 // A ServerReport is a report for a matrix server.
 type ServerReport struct {
-	DNSResult         matrixfederation.DNSResult  // The result of looking up the server in DNS.
+	DNSResult         gomatrixserverlib.DNSResult // The result of looking up the server in DNS.
 	ConnectionReports map[string]ConnectionReport // The report for each server address we could connect to.
 	ConnectionErrors  map[string]error            // The errors for each server address we couldn't connect to.
 }
@@ -93,16 +93,16 @@ type CipherSummary struct {
 
 // A X509CertSummary is a summary of the information in a X509 certificate.
 type X509CertSummary struct {
-	SubjectCommonName string                        // The common name of the subject.
-	IssuerCommonName  string                        // The common name of the issuer.
-	SHA256Fingerprint matrixfederation.Base64String // The SHA256 fingerprint of the certificate.
-	DNSNames          []string                      // The DNS names this certificate is valid for.
+	SubjectCommonName string                         // The common name of the subject.
+	IssuerCommonName  string                         // The common name of the issuer.
+	SHA256Fingerprint gomatrixserverlib.Base64String // The SHA256 fingerprint of the certificate.
+	DNSNames          []string                       // The DNS names this certificate is valid for.
 }
 
 // Report creates a ServerReport for a matrix server.
-func Report(serverName string, sni string) (*ServerReport, error) {
+func Report(serverName gomatrixserverlib.ServerName, sni string) (*ServerReport, error) {
 	var report ServerReport
-	dnsResult, err := matrixfederation.LookupServer(serverName)
+	dnsResult, err := gomatrixserverlib.LookupServer(serverName)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func Report(serverName string, sni string) (*ServerReport, error) {
 	report.ConnectionErrors = make(map[string]error)
 	now := time.Now()
 	for _, addr := range report.DNSResult.Addrs {
-		keys, connState, err := matrixfederation.FetchKeysDirect(serverName, addr, sni)
+		keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverName, addr, sni)
 		if err != nil {
 			report.ConnectionErrors[addr] = err
 			continue
@@ -149,7 +149,7 @@ func Report(serverName string, sni string) (*ServerReport, error) {
 		}
 		connReport.Cipher.Version = enumToString(tlsVersions, connState.Version)
 		connReport.Cipher.CipherSuite = enumToString(tlsCipherSuites, connState.CipherSuite)
-		connReport.Checks, connReport.Ed25519VerifyKeys, connReport.SHA256TLSFingerprints = matrixfederation.CheckKeys(serverName, now, *keys, connState)
+		connReport.Checks, connReport.Ed25519VerifyKeys, connReport.SHA256TLSFingerprints = gomatrixserverlib.CheckKeys(serverName, now, *keys, connState)
 		raw := json.RawMessage(keys.Raw)
 		connReport.Keys = &raw
 		report.ConnectionReports[addr] = connReport

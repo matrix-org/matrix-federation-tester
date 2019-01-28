@@ -1,14 +1,27 @@
-package matrixfederation
+/* Copyright 2016-2017 Vector Creations Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package gomatrixserverlib
 
 import (
 	"testing"
 )
 
 func testSortJSON(t *testing.T, input, want string) {
-	got, err := SortJSON([]byte(input), nil)
-	if err != nil {
-		t.Error(err)
-	}
+	got := SortJSON([]byte(input), nil)
+
 	// Squash out the whitespace before comparing the JSON in case SortJSON had inserted whitespace.
 	if string(CompactJSON(got, nil)) != want {
 		t.Errorf("SortJSON(%q): want %q got %q", input, want, got)
@@ -21,6 +34,7 @@ func TestSortJSON(t *testing.T) {
 		`{"A":{"1":1,"2":2},"B":{"3":3,"4":4}}`)
 	testSortJSON(t, `[true,false,null]`, `[true,false,null]`)
 	testSortJSON(t, `[9007199254740991]`, `[9007199254740991]`)
+	testSortJSON(t, "\t\n[9007199254740991]", `[9007199254740991]`)
 }
 
 func testCompactJSON(t *testing.T, input, want string) {
