@@ -16,8 +16,8 @@
 			"path": "/proto"
 		},
 		{
-			"importpath": "github.com/matrix-org/golang-matrixfederation",
-			"repository": "https://github.com/matrix-org/golang-matrixfederation",
+			"importpath": "github.com/matrix-org/gomatrixserverlib",
+			"repository": "https://github.com/matrix-org/gomatrixserverlib",
 			"revision": "d509d58afb3e5e7619700548a95ffe1e21e12f89",
 			"branch": "master"
 		},

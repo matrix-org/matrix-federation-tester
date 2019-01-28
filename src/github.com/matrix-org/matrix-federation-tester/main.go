@@ -6,12 +6,13 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/matrix-org/golang-matrixfederation"
-	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"time"
+
+	matrixfederation "github.com/matrix-org/gomatrixserverlib"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // HandleReport handles an HTTP request for a JSON report for matrix server.
