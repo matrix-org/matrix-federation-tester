@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -81,6 +82,7 @@ type ConnectionReport struct {
 	Checks                matrixfederation.KeyChecks               // The checks applied to the server and their results.
 	Ed25519VerifyKeys     map[string]matrixfederation.Base64String // The Verify keys for this server or nil if the checks were not ok.
 	SHA256TLSFingerprints []matrixfederation.Base64String          // The SHA256 tls fingerprints for this server or nil if the checks were not ok.
+	ValidCertificates     bool                                     // The X509 certificates have been verified by the system root CAs.
 }
 
 // A CipherSummary is a summary of the TLS version and Cipher used in a TLS connection.
@@ -117,6 +119,24 @@ func Report(serverName string, sni string) (*ServerReport, error) {
 			continue
 		}
 		var connReport ConnectionReport
+
+		// Check for valid X509 certificate
+		intermediateCerts := x509.NewCertPool()
+		var directCert *x509.Certificate
+		for _, cert := range connState.PeerCertificates {
+			// Non-direct (intermediate) certificates are those without a populated DNSNames slice
+			if cert.DNSNames == nil {
+				intermediateCerts.AddCert(cert)
+			} else {
+				directCert = cert
+			}
+		}
+
+		if directCert != nil {
+			valid, _ := matrixfederation.IsValidCertificate(serverName, directCert, intermediateCerts)
+			connReport.ValidCertificates = valid
+		}
+
 		for _, cert := range connState.PeerCertificates {
 			fingerprint := sha256.Sum256(cert.Raw)
 			summary := X509CertSummary{
