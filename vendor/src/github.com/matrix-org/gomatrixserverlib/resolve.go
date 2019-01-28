@@ -1,4 +1,19 @@
-package matrixfederation
+/* Copyright 2016-2017 Vector Creations Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package gomatrixserverlib
 
 import (
 	"net"
@@ -23,15 +38,15 @@ type DNSResult struct {
 }
 
 // LookupServer looks up a matrix server in DNS.
-func LookupServer(serverName string) (*DNSResult, error) {
+func LookupServer(serverName ServerName) (*DNSResult, error) { // nolint: gocyclo
 	var result DNSResult
 	result.Hosts = map[string]HostResult{}
 
 	hosts := map[string][]net.SRV{}
-	if strings.Index(serverName, ":") == -1 {
+	if !strings.Contains(string(serverName), ":") {
 		// If there isn't an explicit port set then try to look up the SRV record.
 		var err error
-		result.SRVCName, result.SRVRecords, err = net.LookupSRV("matrix", "tcp", serverName)
+		result.SRVCName, result.SRVRecords, err = net.LookupSRV("matrix", "tcp", string(serverName))
 		result.SRVError = err
 
 		if err != nil {
@@ -42,8 +57,8 @@ func LookupServer(serverName string) (*DNSResult, error) {
 					return nil, err
 				}
 				// If there isn't a SRV record in DNS then fallback to "serverName:8448".
-				hosts[serverName] = []net.SRV{net.SRV{
-					Target: serverName,
+				hosts[string(serverName)] = []net.SRV{{
+					Target: string(serverName),
 					Port:   8448,
 				}}
 			}
@@ -56,7 +71,7 @@ func LookupServer(serverName string) (*DNSResult, error) {
 	} else {
 		// There is a explicit port set in the server name.
 		// We don't need to look up any SRV records.
-		host, portStr, err := net.SplitHostPort(serverName)
+		host, portStr, err := net.SplitHostPort(string(serverName))
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +80,7 @@ func LookupServer(serverName string) (*DNSResult, error) {
 		if err != nil {
 			return nil, err
 		}
-		hosts[host] = []net.SRV{net.SRV{
+		hosts[host] = []net.SRV{{
 			Target: host,
 			Port:   uint16(port),
 		}}
