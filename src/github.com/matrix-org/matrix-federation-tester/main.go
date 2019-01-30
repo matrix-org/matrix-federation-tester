@@ -32,9 +32,18 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 		fmt.Printf("Unsupported method.")
 		return
 	}
-	serverName := req.URL.Query().Get("server_name")
+	serverName := gomatrixserverlib.ServerName(req.URL.Query().Get("server_name"))
+
+	// Check for .well-known
+	wellKnownInUse := false
+	if wellKnown, err := gomatrixserverlib.LookupWellKnown(serverName); err == nil {
+		// Use new well-known
+		serverName = wellKnown.NewAddress
+		wellKnownInUse = true
+	}
+
 	tlsSNI := req.URL.Query().Get("tls_sni")
-	result, err := JSONReport(gomatrixserverlib.ServerName(serverName), tlsSNI)
+	result, err := JSONReport(serverName, tlsSNI, wellKnownInUse)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Printf("Error Generating Report: %q", err.Error())
@@ -46,8 +55,8 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 }
 
 // JSONReport generates a JSON formatted report for a matrix server.
-func JSONReport(serverName gomatrixserverlib.ServerName, sni string) ([]byte, error) {
-	results, err := Report(serverName, sni)
+func JSONReport(serverName gomatrixserverlib.ServerName, sni string, wellKnown bool) ([]byte, error) {
+	results, err := Report(serverName, sni, wellKnown)
 	if err != nil {
 		return nil, err
 	}
@@ -74,12 +83,20 @@ type ServerReport struct {
 	ConnectionErrors  map[string]error            // The errors for each server address we couldn't connect to.
 }
 
+// Info is a struct that contains federation checks that are not necessary in
+// order for proper federation. These are placed in a separate field in order to
+// make parsing the resulting JSON simpler
+type Info struct {
+	WellKnownInUse bool // Whether the server is using .well-known
+}
+
 // A ConnectionReport is information about a connection made to a matrix server.
 type ConnectionReport struct {
 	Certificates          []X509CertSummary                                          // Summary information for each x509 certificate served up by this server.
 	Cipher                CipherSummary                                              // Summary information on the TLS cipher used by this server.
 	Keys                  *json.RawMessage                                           // The server key JSON returned by this server.
-	Checks                gomatrixserverlib.KeyChecks                                // The checks applied to the server and their results.
+	Checks                gomatrixserverlib.KeyChecks                                // Checks applied to the server and their results.
+	Info                  Info                                                       // Checks that are not necessary to pass, rather simply informative.
 	Ed25519VerifyKeys     map[gomatrixserverlib.KeyID]gomatrixserverlib.Base64String // The Verify keys for this server or nil if the checks were not ok.
 	SHA256TLSFingerprints []gomatrixserverlib.Base64String                           // The SHA256 tls fingerprints for this server or nil if the checks were not ok.
 	ValidCertificates     bool                                                       // The X509 certificates have been verified by the system root CAs.
@@ -100,7 +117,7 @@ type X509CertSummary struct {
 }
 
 // Report creates a ServerReport for a matrix server.
-func Report(serverName gomatrixserverlib.ServerName, sni string) (*ServerReport, error) {
+func Report(serverName gomatrixserverlib.ServerName, sni string, wellKnown bool) (*ServerReport, error) {
 	var report ServerReport
 	dnsResult, err := gomatrixserverlib.LookupServer(serverName)
 	if err != nil {
@@ -150,11 +167,23 @@ func Report(serverName gomatrixserverlib.ServerName, sni string) (*ServerReport,
 		connReport.Cipher.Version = enumToString(tlsVersions, connState.Version)
 		connReport.Cipher.CipherSuite = enumToString(tlsCipherSuites, connState.CipherSuite)
 		connReport.Checks, connReport.Ed25519VerifyKeys, connReport.SHA256TLSFingerprints = gomatrixserverlib.CheckKeys(serverName, now, *keys, connState)
+		connReport.Info = infoChecks(serverName, wellKnown)
 		raw := json.RawMessage(keys.Raw)
 		connReport.Keys = &raw
 		report.ConnectionReports[addr] = connReport
 	}
 	return &report, nil
+}
+
+// infoChecks are checks that are not required for federation, just good-to-knows
+func infoChecks(serverName gomatrixserverlib.ServerName, wellKnown bool) Info {
+	info := Info{}
+
+	// Well-known is checked earlier for redirecting the test servername, so just
+	// reuse that result
+	info.WellKnownInUse = wellKnown
+
+	return info
 }
 
 // A ReportError is a version of a golang error that is human readable when serialised as JSON.
