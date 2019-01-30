@@ -185,7 +185,7 @@ func CheckKeys(serverName ServerName, now time.Time, keys ServerKeys, connState 
 
 	// Only check the fingerprint if we have the TLS connection state.
 	if connState != nil {
-		// Check the peer certificates.
+		// Check the peer certificatesMSC.
 		matches := checkFingerprint(connState, sha256Fingerprints)
 		checks.MatchingTLSFingerprint = &matches
 		checks.AllChecksOK = checks.AllChecksOK && matches
