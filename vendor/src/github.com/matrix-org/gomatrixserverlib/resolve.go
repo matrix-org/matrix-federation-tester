@@ -85,6 +85,7 @@ func LookupServer(serverName ServerName) (*DNSResult, error) { // nolint: gocycl
 			Port:   uint16(port),
 		}}
 	}
+
 	// Look up the IP addresses for each host.
 	for host, records := range hosts {
 		// Ignore any DNS errors when looking up the CNAME. We only are interested in it for debugging.

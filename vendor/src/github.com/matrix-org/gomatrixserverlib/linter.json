@@ -13,8 +13,6 @@
         "ineffassign",
         "gosec",
         "misspell",
-        "gosimple",
-        "megacheck",
         "unparam",
         "goimports",
         "goconst",
