@@ -35,15 +35,15 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 	serverName := gomatrixserverlib.ServerName(req.URL.Query().Get("server_name"))
 
 	// Check for .well-known
-	wellKnownInUse := false
-	if wellKnown, err := gomatrixserverlib.LookupWellKnown(serverName); err == nil {
+  var err error
+	var wellKnown *gomatrixserverlib.WellKnownResult
+	if wellKnown, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
 		// Use new well-known
 		serverName = wellKnown.NewAddress
-		wellKnownInUse = true
 	}
 
 	tlsSNI := req.URL.Query().Get("tls_sni")
-	result, err := JSONReport(serverName, tlsSNI, wellKnownInUse)
+	result, err := JSONReport(serverName, tlsSNI, wellKnown)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Printf("Error Generating Report: %q", err.Error())
@@ -55,7 +55,9 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 }
 
 // JSONReport generates a JSON formatted report for a matrix server.
-func JSONReport(serverName gomatrixserverlib.ServerName, sni string, wellKnown bool) ([]byte, error) {
+func JSONReport(
+  serverName gomatrixserverlib.ServerName, sni string, wellKnown *gomatrixserverlib.WellKnownResult,
+) ([]byte, error) {
 	results, err := Report(serverName, sni, wellKnown)
 	if err != nil {
 		return nil, err
@@ -117,7 +119,9 @@ type X509CertSummary struct {
 }
 
 // Report creates a ServerReport for a matrix server.
-func Report(serverName gomatrixserverlib.ServerName, sni string, wellKnown bool) (*ServerReport, error) {
+func Report(
+  serverName gomatrixserverlib.ServerName, sni string, wellKnown *gomatrixserverlib.WellKnownResult,
+) (*ServerReport, error) {
 	var report ServerReport
 	dnsResult, err := gomatrixserverlib.LookupServer(serverName)
 	if err != nil {
@@ -166,7 +170,9 @@ func Report(serverName gomatrixserverlib.ServerName, sni string, wellKnown bool)
 		}
 		connReport.Cipher.Version = enumToString(tlsVersions, connState.Version)
 		connReport.Cipher.CipherSuite = enumToString(tlsCipherSuites, connState.CipherSuite)
-		connReport.Checks, connReport.Ed25519VerifyKeys, connReport.SHA256TLSFingerprints = gomatrixserverlib.CheckKeys(serverName, now, *keys, connState)
+		connReport.Checks, connReport.Ed25519VerifyKeys, connReport.SHA256TLSFingerprints = gomatrixserverlib.CheckKeys(
+      serverName, now, *keys, connState, wellKnown,
+    )
 		connReport.Info = infoChecks(serverName, wellKnown)
 		raw := json.RawMessage(keys.Raw)
 		connReport.Keys = &raw
@@ -176,12 +182,14 @@ func Report(serverName gomatrixserverlib.ServerName, sni string, wellKnown bool)
 }
 
 // infoChecks are checks that are not required for federation, just good-to-knows
-func infoChecks(serverName gomatrixserverlib.ServerName, wellKnown bool) Info {
+func infoChecks(
+  serverName gomatrixserverlib.ServerName, wellKnown *gomatrixserverlib.WellKnownResult,
+) Info {
 	info := Info{}
 
 	// Well-known is checked earlier for redirecting the test servername, so just
 	// reuse that result
-	info.WellKnownInUse = wellKnown
+	info.WellKnownInUse = (wellKnown != nil)
 
 	return info
 }

@@ -173,10 +173,18 @@ type KeyChecks struct {
 
 // CheckKeys checks the keys returned from a server to make sure they are valid.
 // If the checks pass then also return a map of key_id to Ed25519 public key and a list of SHA256 TLS fingerprints.
-func CheckKeys(serverName ServerName, now time.Time, keys ServerKeys, connState *tls.ConnectionState) (
-	checks KeyChecks, ed25519Keys map[KeyID]Base64String, sha256Fingerprints []Base64String,
+func CheckKeys(
+  serverName ServerName,
+  now time.Time,
+  keys ServerKeys,
+  connState *tls.ConnectionState,
+  wellKnown *WellKnownResult,
+) (
+	checks KeyChecks,
+  ed25519Keys map[KeyID]Base64String,
+  sha256Fingerprints []Base64String,
 ) {
-	checks.MatchingServerName = serverName == keys.ServerName
+	checks.MatchingServerName = serverName == keys.ServerName || serverName == wellKnown.NewAddress
 	checks.FutureValidUntilTS = keys.ValidUntilTS.Time().After(now)
 	checks.AllChecksOK = checks.MatchingServerName && checks.FutureValidUntilTS
 
@@ -185,7 +193,7 @@ func CheckKeys(serverName ServerName, now time.Time, keys ServerKeys, connState 
 
 	// Only check the fingerprint if we have the TLS connection state.
 	if connState != nil {
-		// Check the peer certificatesMSC.
+		// Check the peer certificates.
 		matches := checkFingerprint(connState, sha256Fingerprints)
 		checks.MatchingTLSFingerprint = &matches
 		checks.AllChecksOK = checks.AllChecksOK && matches
