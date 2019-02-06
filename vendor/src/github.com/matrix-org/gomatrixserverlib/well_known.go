@@ -1,6 +1,7 @@
 package gomatrixserverlib
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -23,10 +24,17 @@ func LookupWellKnown(serverNameType ServerName) (*WellKnownResult, error) {
 	strings.Trim(serverName, "/")
 
 	wellKnownPath := "/.well-known/matrix/server"
-	wellKnown := "https://" + serverName + wellKnownPath
+	wellKnown := "http://" + serverName + wellKnownPath
+
+	// The http lib seems to choke on Let's Encrypt here
+	// We don't require HTTPS for this endpoint anyways, so disable certificate verification
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
 
 	// Request server's well-known record
-	resp, err := http.Get(wellKnown)
+	resp, err := client.Get(wellKnown)
 	if err != nil {
 		return nil, err
 	}
