@@ -165,7 +165,7 @@ func Report(serverName gomatrixserverlib.ServerName, sni string, wellKnown bool)
 		}
 		connReport.Cipher.Version = enumToString(tlsVersions, connState.Version)
 		connReport.Cipher.CipherSuite = enumToString(tlsCipherSuites, connState.CipherSuite)
-		connReport.Checks, connReport.Ed25519VerifyKeys = gomatrixserverlib.CheckKeys(serverName, now, *keys, connState)
+		connReport.Checks, connReport.Ed25519VerifyKeys = gomatrixserverlib.CheckKeys(serverName, now, *keys)
 		connReport.Info = infoChecks(serverName, wellKnown)
 		raw := json.RawMessage(keys.Raw)
 		connReport.Keys = &raw
