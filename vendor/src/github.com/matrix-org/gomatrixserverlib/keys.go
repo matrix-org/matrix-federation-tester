@@ -166,12 +166,11 @@ func CheckKeys(
 	serverName ServerName,
 	now time.Time,
 	keys ServerKeys,
-	wellKnown *WellKnownResult,
 ) (
 	checks KeyChecks,
 	ed25519Keys map[KeyID]Base64String,
 ) {
-	checks.MatchingServerName = serverName == keys.ServerName || serverName == wellKnown.NewAddress
+	checks.MatchingServerName = serverName == keys.ServerName
 	checks.FutureValidUntilTS = keys.ValidUntilTS.Time().After(now)
 	checks.AllChecksOK = checks.MatchingServerName && checks.FutureValidUntilTS
 
