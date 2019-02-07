@@ -33,18 +33,9 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	serverName := gomatrixserverlib.ServerName(req.URL.Query().Get("server_name"))
-	serverHost := string(serverName)
-
-	// Check for .well-known
-	var err error
-	var wellKnown *gomatrixserverlib.WellKnownResult
-	if wellKnown, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
-		// Use well-known as new host
-		serverHost = string(wellKnown.NewAddress)
-	}
 
 	tlsSNI := req.URL.Query().Get("tls_sni")
-	result, err := JSONReport(serverName, serverHost, tlsSNI, wellKnown)
+	result, err := JSONReport(serverName, tlsSNI)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Printf("Error Generating Report: %q", err.Error())
@@ -57,9 +48,9 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 
 // JSONReport generates a JSON formatted report for a matrix server.
 func JSONReport(
-	serverName gomatrixserverlib.ServerName, serverHost, sni string, wellKnown *gomatrixserverlib.WellKnownResult,
+	serverName gomatrixserverlib.ServerName, sni string,
 ) ([]byte, error) {
-	results, err := Report(serverName, serverHost, sni, wellKnown)
+	results, err := Report(serverName, sni)
 	if err != nil {
 		return nil, err
 	}
@@ -120,10 +111,21 @@ type X509CertSummary struct {
 
 // Report creates a ServerReport for a matrix server.
 func Report(
-	serverName gomatrixserverlib.ServerName, serverHost, sni string, wellKnown *gomatrixserverlib.WellKnownResult,
+	serverName gomatrixserverlib.ServerName, sni string,
 ) (*ServerReport, error) {
+	// Host address of the server (can be different from the serverName through SRV/well-known)
+	serverHost := serverName
+
+	// Check for .well-known
+	var err error
+	var wellKnown *gomatrixserverlib.WellKnownResult
+	if wellKnown, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
+		// Use well-known as new host
+		serverHost = wellKnown.NewAddress
+	}
+
 	var report ServerReport
-	dnsResult, err := gomatrixserverlib.LookupServer(serverName)
+	dnsResult, err := gomatrixserverlib.LookupServer(serverHost)
 	if err != nil {
 		return nil, err
 	}
