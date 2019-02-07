@@ -33,17 +33,18 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	serverName := gomatrixserverlib.ServerName(req.URL.Query().Get("server_name"))
+	serverHost := string(serverName)
 
 	// Check for .well-known
-  var err error
+	var err error
 	var wellKnown *gomatrixserverlib.WellKnownResult
 	if wellKnown, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
-		// Use new well-known
-		serverName = wellKnown.NewAddress
+		// Use well-known as new host
+		serverHost = string(wellKnown.NewAddress)
 	}
 
 	tlsSNI := req.URL.Query().Get("tls_sni")
-	result, err := JSONReport(serverName, tlsSNI, wellKnown)
+	result, err := JSONReport(serverName, serverHost, tlsSNI, wellKnown)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Printf("Error Generating Report: %q", err.Error())
@@ -56,9 +57,9 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 
 // JSONReport generates a JSON formatted report for a matrix server.
 func JSONReport(
-  serverName gomatrixserverlib.ServerName, sni string, wellKnown *gomatrixserverlib.WellKnownResult,
+	serverName gomatrixserverlib.ServerName, serverHost, sni string, wellKnown *gomatrixserverlib.WellKnownResult,
 ) ([]byte, error) {
-	results, err := Report(serverName, sni, wellKnown)
+	results, err := Report(serverName, serverHost, sni, wellKnown)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +120,7 @@ type X509CertSummary struct {
 
 // Report creates a ServerReport for a matrix server.
 func Report(
-  serverName gomatrixserverlib.ServerName, sni string, wellKnown *gomatrixserverlib.WellKnownResult,
+	serverName gomatrixserverlib.ServerName, serverHost, sni string, wellKnown *gomatrixserverlib.WellKnownResult,
 ) (*ServerReport, error) {
 	var report ServerReport
 	dnsResult, err := gomatrixserverlib.LookupServer(serverName)
@@ -180,7 +181,7 @@ func Report(
 
 // infoChecks are checks that are not required for federation, just good-to-knows
 func infoChecks(
-  serverName gomatrixserverlib.ServerName, wellKnown *gomatrixserverlib.WellKnownResult,
+	serverName gomatrixserverlib.ServerName, wellKnown *gomatrixserverlib.WellKnownResult,
 ) Info {
 	info := Info{}
 
