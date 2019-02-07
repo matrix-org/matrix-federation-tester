@@ -318,7 +318,7 @@ func (p *PerspectiveKeyFetcher) FetchKeys(
 		}
 
 		// Check that the keys are valid for the server they claim to be
-		checks, _, _ := CheckKeys(keys.ServerName, time.Unix(0, 0), keys, nil, nil)
+		checks, _ := CheckKeys(keys.ServerName, time.Unix(0, 0), keys)
 		if !checks.AllChecksOK {
 			// This is bad because it means that the perspective server was trying to feed us an invalid response.
 			return nil, fmt.Errorf("gomatrixserverlib: key response from perspective server failed checks")
@@ -382,7 +382,7 @@ func (d *DirectKeyFetcher) fetchKeysForServer(
 		return nil, err
 	}
 	// Check that the keys are valid for the server.
-	checks, _, _ := CheckKeys(serverName, time.Unix(0, 0), keys, nil, nil)
+	checks, _ := CheckKeys(serverName, time.Unix(0, 0), keys)
 	if !checks.AllChecksOK {
 		return nil, fmt.Errorf("gomatrixserverlib: key response direct from %q failed checks", serverName)
 	}
