@@ -84,7 +84,7 @@ type Info struct {
 	WellKnownInUse bool // Whether the server is using .well-known
 }
 
-// Errors is a slice of human-readable errors encoded as strings.
+// Errors is a slice of human readable errors encoded as strings.
 // Inclusion in this slice are errors which help better explain why a specific
 // check failed.
 type Errors []error
@@ -148,7 +148,7 @@ func Report(
 			continue
 		}
 		var connReport ConnectionReport
-		// Slice of human-readable errors found during testing.
+		// Slice of human readable errors found during testing.
 		connReport.Errors = make([]error, 0, 0)
 
 		// Check for valid X509 certificate
