@@ -6,10 +6,10 @@ import (
 
 // IsValidCertificate checks if the given x509 certificate can be verified using
 // system root CAs and an optional pool of intermediate CAs.
-func IsValidCertificate(serverNames []ServerName, c *x509.Certificate, intermediates *x509.CertPool) (valid bool, err error) {
+func IsValidCertificate(serverNames []ServerName, c *x509.Certificate, intermediates *x509.CertPool) (bool, error) {
 	for _, serverName := range serverNames {
 		verificationOpts := x509.VerifyOptions{
-			DNSName: string(serverName),
+			DNSName:       string(serverName),
 			Intermediates: intermediates,
 		}
 		roots, err := c.Verify(verificationOpts)
@@ -20,5 +20,5 @@ func IsValidCertificate(serverNames []ServerName, c *x509.Certificate, intermedi
 		}
 	}
 
-	return false, err
+	return false, nil
 }
