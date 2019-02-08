@@ -144,6 +144,7 @@ func Report(
 		var connReport ConnectionReport
 
 		// Check for valid X509 certificate
+		DNSNames := make([]gomatrixserverlib.ServerName, 0, 0)
 		intermediateCerts := x509.NewCertPool()
 		var directCert *x509.Certificate
 		for _, cert := range connState.PeerCertificates {
@@ -152,11 +153,14 @@ func Report(
 				intermediateCerts.AddCert(cert)
 			} else {
 				directCert = cert
+				for _, DNSName := range cert.DNSNames {
+					DNSNames = append(DNSNames, gomatrixserverlib.ServerName(DNSName))
+				}
 			}
 		}
 
 		if directCert != nil {
-			valid, _ := gomatrixserverlib.IsValidCertificate(serverName, directCert, intermediateCerts)
+			valid, _ := gomatrixserverlib.IsValidCertificate(DNSNames, directCert, intermediateCerts)
 			connReport.ValidCertificates = valid
 		}
 
