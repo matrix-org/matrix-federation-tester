@@ -161,7 +161,7 @@ type KeyChecks struct {
 }
 
 // CheckKeys checks the keys returned from a server to make sure they are valid.
-// If the checks pass then also return a map of key_id to Ed25519 public key and a list of SHA256 TLS fingerprints.
+// If the checks pass then also return a map of key_id to Ed25519 public key
 func CheckKeys(
 	serverName ServerName,
 	now time.Time,
