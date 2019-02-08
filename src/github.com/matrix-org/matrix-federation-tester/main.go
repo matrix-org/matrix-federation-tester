@@ -34,16 +34,8 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 	}
 	serverName := gomatrixserverlib.ServerName(req.URL.Query().Get("server_name"))
 
-	// Check for .well-known
-	wellKnownInUse := false
-	if wellKnown, err := gomatrixserverlib.LookupWellKnown(serverName); err == nil {
-		// Use new well-known
-		serverName = wellKnown.NewAddress
-		wellKnownInUse = true
-	}
-
 	tlsSNI := req.URL.Query().Get("tls_sni")
-	result, err := JSONReport(serverName, tlsSNI, wellKnownInUse)
+	result, err := JSONReport(serverName, tlsSNI)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Printf("Error Generating Report: %q", err.Error())
@@ -55,8 +47,10 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 }
 
 // JSONReport generates a JSON formatted report for a matrix server.
-func JSONReport(serverName gomatrixserverlib.ServerName, sni string, wellKnown bool) ([]byte, error) {
-	results, err := Report(serverName, sni, wellKnown)
+func JSONReport(
+	serverName gomatrixserverlib.ServerName, sni string,
+) ([]byte, error) {
+	results, err := Report(serverName, sni)
 	if err != nil {
 		return nil, err
 	}
@@ -116,9 +110,22 @@ type X509CertSummary struct {
 }
 
 // Report creates a ServerReport for a matrix server.
-func Report(serverName gomatrixserverlib.ServerName, sni string, wellKnown bool) (*ServerReport, error) {
+func Report(
+	serverName gomatrixserverlib.ServerName, sni string,
+) (*ServerReport, error) {
+	// Host address of the server (can be different from the serverName through SRV/well-known)
+	serverHost := serverName
+
+	// Check for .well-known
+	var err error
+	var wellKnown *gomatrixserverlib.WellKnownResult
+	if wellKnown, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
+		// Use well-known as new host
+		serverHost = wellKnown.NewAddress
+	}
+
 	var report ServerReport
-	dnsResult, err := gomatrixserverlib.LookupServer(serverName)
+	dnsResult, err := gomatrixserverlib.LookupServer(serverHost)
 	if err != nil {
 		return nil, err
 	}
@@ -175,12 +182,14 @@ func Report(serverName gomatrixserverlib.ServerName, sni string, wellKnown bool)
 }
 
 // infoChecks are checks that are not required for federation, just good-to-knows
-func infoChecks(serverName gomatrixserverlib.ServerName, wellKnown bool) Info {
+func infoChecks(
+	serverName gomatrixserverlib.ServerName, wellKnown *gomatrixserverlib.WellKnownResult,
+) Info {
 	info := Info{}
 
 	// Well-known is checked earlier for redirecting the test servername, so just
 	// reuse that result
-	info.WellKnownInUse = wellKnown
+	info.WellKnownInUse = (wellKnown != nil)
 
 	return info
 }
