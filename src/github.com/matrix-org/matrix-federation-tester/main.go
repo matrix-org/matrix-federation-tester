@@ -156,7 +156,7 @@ func Report(
 		}
 
 		if directCert != nil {
-			valid, _ := gomatrixserverlib.IsValidCertificate(serverName, directCert, intermediateCerts)
+			valid, _ := gomatrixserverlib.IsValidCertificate(serverHost, directCert, intermediateCerts)
 			connReport.ValidCertificates = valid
 		}
 
