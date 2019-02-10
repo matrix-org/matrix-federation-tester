@@ -1,4 +1,13 @@
 language: go
 go:
  - 1.10.x
-script: ./scripts/travis.sh
+
+install:
+ - go get github.com/constabulary/gb/...
+
+script:
+ - ./scripts/travis.sh
+
+# we only need the latest git commit
+git:
+  depth: 1
