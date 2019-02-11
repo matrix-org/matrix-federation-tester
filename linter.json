@@ -1,0 +1,24 @@
+{
+    "Deadline": "5m",
+    "Enable": [
+        "vet",
+        "vetshadow",
+        "gotype",
+        "deadcode",
+        "gocyclo",
+        "golint",
+        "varcheck",
+        "structcheck",
+        "maligned",
+        "ineffassign",
+        "gosec",
+        "misspell",
+        "unparam",
+        "goimports",
+        "goconst",
+        "unconvert",
+        "errcheck",
+        "interfacer",
+        "testify"
+    ]
+}
