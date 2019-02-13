@@ -137,7 +137,7 @@ func Report(
 	report.ConnectionErrors = make(map[string]error)
 	now := time.Now()
 	for _, addr := range report.DNSResult.Addrs {
-		keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverName, addr, sni)
+		keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverHost, addr, sni)
 		if err != nil {
 			report.ConnectionErrors[addr] = err
 			continue
@@ -159,7 +159,7 @@ func Report(
 		}
 
 		if directCert != nil {
-			valid, err := gomatrixserverlib.IsValidCertificate(serverName, directCert, intermediateCerts)
+			valid, err := gomatrixserverlib.IsValidCertificate(serverHost, directCert, intermediateCerts)
 			if err != nil {
 				connReport.Errors = append(connReport.Errors, asReportError(err))
 			}
