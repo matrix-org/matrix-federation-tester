@@ -72,15 +72,15 @@ func main() {
 
 // A ServerReport is a report for a matrix server.
 type ServerReport struct {
-	WellKnownResult   WellKnownResult             // The result of looking up the server's .well-known/matrix/server file.
+	WellKnownResult   WellKnownReport             // The result of looking up the server's .well-known/matrix/server file.
 	DNSResult         gomatrixserverlib.DNSResult // The result of looking up the server in DNS.
 	ConnectionReports map[string]ConnectionReport // The report for each server address we could connect to.
 	ConnectionErrors  map[string]error            // The errors for each server address we couldn't connect to.
 }
 
-// A WellKnownResult is the combination of data from a matrix server's
+// A WellKnownReport is the combination of data from a matrix server's
 // .well-known file, as well as any errors reported during the lookup.
-type WellKnownResult struct {
+type WellKnownReport struct {
 	ServerAddress gomatrixserverlib.ServerName `json:"m.server"`
 	Error string `json:"error,omitempty"`
 }
