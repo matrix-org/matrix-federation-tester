@@ -91,6 +91,7 @@ type ConnectionReport struct {
 	Keys              *json.RawMessage                                           // The server key JSON returned by this server.
 	Checks            gomatrixserverlib.KeyChecks                                // Checks applied to the server and their results.
 	Info              Info                                                       // Checks that are not necessary to pass, rather simply informative.
+	Errors            []error                                                    // String slice describing any problems encountered during testing.
 	Ed25519VerifyKeys map[gomatrixserverlib.KeyID]gomatrixserverlib.Base64String // The Verify keys for this server or nil if the checks were not ok.
 	ValidCertificates bool                                                       // The X509 certificates have been verified by the system root CAs.
 }
@@ -142,6 +143,8 @@ func Report(
 			continue
 		}
 		var connReport ConnectionReport
+		// Slice of human readable errors found during testing.
+		connReport.Errors = make([]error, 0, 0)
 
 		// Check for valid X509 certificate
 		intermediateCerts := x509.NewCertPool()
@@ -156,7 +159,10 @@ func Report(
 		}
 
 		if directCert != nil {
-			valid, _ := gomatrixserverlib.IsValidCertificate(serverName, directCert, intermediateCerts)
+			valid, err := gomatrixserverlib.IsValidCertificate(serverName, directCert, intermediateCerts)
+			if err != nil {
+				connReport.Errors = append(connReport.Errors, asReportError(err))
+			}
 			connReport.ValidCertificates = valid
 		}
 
