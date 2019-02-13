@@ -25,11 +25,6 @@ import (
 	"time"
 )
 
-// A ServerName is the name a matrix homeserver is identified by.
-// It is a DNS name without a trailing dot optionally followed by a port.
-// So it has the format: "[0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*(:[0-9]+)?"
-type ServerName string
-
 // ServerKeys are the ed25519 signing keys published by a matrix server.
 // Contains SHA256 fingerprints of the TLS X509 certificates used by the server.
 type ServerKeys struct {
@@ -161,7 +156,7 @@ type KeyChecks struct {
 }
 
 // CheckKeys checks the keys returned from a server to make sure they are valid.
-// If the checks pass then also return a map of key_id to Ed25519 public key and a list of SHA256 TLS fingerprints.
+// If the checks pass then also return a map of key_id to Ed25519 public key
 func CheckKeys(
 	serverName ServerName,
 	now time.Time,

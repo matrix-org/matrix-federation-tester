@@ -398,7 +398,7 @@ func aliasEventAllowed(event Event, authEvents AuthEventProvider) error {
 	// Check that the state key matches the server sending this event.
 	// https://github.com/matrix-org/synapse/blob/v0.18.5/synapse/api/auth.py#L158
 	if !event.StateKeyEquals(senderDomain) {
-		return errorf("alias state_key does not match sender domain, %q != %q", senderDomain, event.StateKey())
+		return errorf("alias state_key does not match sender domain, %q != %q", senderDomain, *event.StateKey())
 	}
 
 	return nil
