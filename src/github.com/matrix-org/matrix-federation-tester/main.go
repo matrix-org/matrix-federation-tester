@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"net"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
@@ -130,7 +129,6 @@ func Report(
 	if err != nil {
 		return nil, err
 	}
-
 	report.DNSResult = *dnsResult
 	// Map of network address to report.
 	report.ConnectionReports = make(map[string]ConnectionReport)
@@ -138,7 +136,7 @@ func Report(
 	report.ConnectionErrors = make(map[string]error)
 	now := time.Now()
 	for _, addr := range report.DNSResult.Addrs {
-		keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverHost, addr, sni)
+		keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverName, addr, sni)
 		if err != nil {
 			report.ConnectionErrors[addr] = err
 			continue
@@ -157,14 +155,8 @@ func Report(
 			}
 		}
 
-		serverHostName:=serverHost
 		if directCert != nil {
-			hostPart,_,err:=net.SplitHostPort(string(serverHost))
-			if err == nil {		// there was no port part in serverHost
-				serverHostName=gomatrixserverlib.ServerName(hostPart)
-			}
-
-			valid, _ := gomatrixserverlib.IsValidCertificate(serverHostName, directCert, intermediateCerts)
+			valid, _ := gomatrixserverlib.IsValidCertificate(serverHost, directCert, intermediateCerts)
 			connReport.ValidCertificates = valid
 		}
 
