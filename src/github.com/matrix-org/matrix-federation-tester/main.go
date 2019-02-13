@@ -91,7 +91,7 @@ type ConnectionReport struct {
 	Keys              *json.RawMessage                                           // The server key JSON returned by this server.
 	Checks            gomatrixserverlib.KeyChecks                                // Checks applied to the server and their results.
 	Info              Info                                                       // Checks that are not necessary to pass, rather simply informative.
-	Errors            []errors                                                   // String slice describing any problems encountered during testing.
+	Errors            []error                                                    // String slice describing any problems encountered during testing.
 	Ed25519VerifyKeys map[gomatrixserverlib.KeyID]gomatrixserverlib.Base64String // The Verify keys for this server or nil if the checks were not ok.
 	ValidCertificates bool                                                       // The X509 certificates have been verified by the system root CAs.
 }
