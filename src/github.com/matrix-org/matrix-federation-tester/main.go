@@ -72,9 +72,17 @@ func main() {
 
 // A ServerReport is a report for a matrix server.
 type ServerReport struct {
+	WellKnownResult   WellKnownReport             // The result of looking up the server's .well-known/matrix/server file.
 	DNSResult         gomatrixserverlib.DNSResult // The result of looking up the server in DNS.
 	ConnectionReports map[string]ConnectionReport // The report for each server address we could connect to.
 	ConnectionErrors  map[string]error            // The errors for each server address we couldn't connect to.
+}
+
+// A WellKnownReport is the combination of data from a matrix server's
+// .well-known file, as well as any errors reported during the lookup.
+type WellKnownReport struct {
+	ServerAddress gomatrixserverlib.ServerName `json:"m.server"`
+	Error string `json:"error,omitempty"`
 }
 
 // Info is a struct that contains federation checks that are not necessary in
@@ -116,16 +124,19 @@ func Report(
 ) (*ServerReport, error) {
 	// Host address of the server (can be different from the serverName through SRV/well-known)
 	serverHost := serverName
+	var report ServerReport
 
 	// Check for .well-known
 	var err error
-	var wellKnown *gomatrixserverlib.WellKnownResult
-	if wellKnown, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
+	var wellKnownResult *gomatrixserverlib.WellKnownResult
+	if wellKnownResult, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
 		// Use well-known as new host
-		serverHost = wellKnown.NewAddress
+		serverHost = wellKnownResult.NewAddress
+		report.WellKnownResult.ServerAddress = wellKnownResult.NewAddress
+	} else {
+		report.WellKnownResult.Error = err.Error()
 	}
 
-	var report ServerReport
 	dnsResult, err := gomatrixserverlib.LookupServer(serverHost)
 	if err != nil {
 		return nil, err
@@ -179,7 +190,7 @@ func Report(
 		connReport.Cipher.Version = enumToString(tlsVersions, connState.Version)
 		connReport.Cipher.CipherSuite = enumToString(tlsCipherSuites, connState.CipherSuite)
 		connReport.Checks, connReport.Ed25519VerifyKeys = gomatrixserverlib.CheckKeys(serverName, now, *keys)
-		connReport.Info = infoChecks(serverName, wellKnown)
+		connReport.Info = infoChecks(serverName, wellKnownResult)
 		raw := json.RawMessage(keys.Raw)
 		connReport.Keys = &raw
 		report.ConnectionReports[addr] = connReport
