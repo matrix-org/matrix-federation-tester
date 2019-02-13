@@ -120,8 +120,8 @@ func Report(
 	var report ServerReport
 
 	// Check for .well-known
-	if report.WellKnownResult = gomatrixserverlib.LookupWellKnown(serverName); report.WellKnownResult.Error == "" {
-		fmt.Println(report.WellKnownResult)
+	var err error
+	if report.WellKnownResult, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
 		// Use well-known as new host
 		serverHost = report.WellKnownResult.NewAddress
 	}
