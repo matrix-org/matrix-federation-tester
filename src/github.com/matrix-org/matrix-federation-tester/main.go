@@ -72,10 +72,17 @@ func main() {
 
 // A ServerReport is a report for a matrix server.
 type ServerReport struct {
-	WellKnownResult   gomatrixserverlib.WellKnownResult // The result of looking up the server's .well-known/matrix/server file.
-	DNSResult         gomatrixserverlib.DNSResult       // The result of looking up the server in DNS.
-	ConnectionReports map[string]ConnectionReport       // The report for each server address we could connect to.
-	ConnectionErrors  map[string]error                  // The errors for each server address we couldn't connect to.
+	WellKnownResult   WellKnownResult             // The result of looking up the server's .well-known/matrix/server file.
+	DNSResult         gomatrixserverlib.DNSResult // The result of looking up the server in DNS.
+	ConnectionReports map[string]ConnectionReport // The report for each server address we could connect to.
+	ConnectionErrors  map[string]error            // The errors for each server address we couldn't connect to.
+}
+
+// A WellKnownResult is the combination of data from a matrix server's
+// .well-known file, as well as any error's reported during the lookup.
+type WellKnownResult struct {
+	ServerAddress gomatrixserverlib.ServerName `json:"m.server"`
+	Error string `json:"error,omitempty"`
 }
 
 // Info is a struct that contains federation checks that are not necessary in
@@ -121,9 +128,13 @@ func Report(
 
 	// Check for .well-known
 	var err error
-	if report.WellKnownResult, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
+	var wellKnownResult *gomatrixserverlib.WellKnownResult
+	if wellKnownResult, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
 		// Use well-known as new host
-		serverHost = report.WellKnownResult.NewAddress
+		serverHost = wellKnownResult.NewAddress
+		report.WellKnownResult.ServerAddress = wellKnownResult.NewAddress
+	} else {
+		report.WellKnownResult.Error = err.Error()
 	}
 
 	dnsResult, err := gomatrixserverlib.LookupServer(serverHost)
@@ -179,7 +190,7 @@ func Report(
 		connReport.Cipher.Version = enumToString(tlsVersions, connState.Version)
 		connReport.Cipher.CipherSuite = enumToString(tlsCipherSuites, connState.CipherSuite)
 		connReport.Checks, connReport.Ed25519VerifyKeys = gomatrixserverlib.CheckKeys(serverName, now, *keys)
-		connReport.Info = infoChecks(serverName, report.WellKnownResult)
+		connReport.Info = infoChecks(serverName, wellKnownResult)
 		raw := json.RawMessage(keys.Raw)
 		connReport.Keys = &raw
 		report.ConnectionReports[addr] = connReport
@@ -189,13 +200,13 @@ func Report(
 
 // infoChecks are checks that are not required for federation, just good-to-knows
 func infoChecks(
-	serverName gomatrixserverlib.ServerName, wellKnown gomatrixserverlib.WellKnownResult,
+	serverName gomatrixserverlib.ServerName, wellKnown *gomatrixserverlib.WellKnownResult,
 ) Info {
 	info := Info{}
 
 	// Well-known is checked earlier for redirecting the test servername, so just
 	// reuse that result
-	info.WellKnownInUse = (wellKnown.NewAddress != "")
+	info.WellKnownInUse = (wellKnown != nil)
 
 	return info
 }
