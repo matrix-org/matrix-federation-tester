@@ -6,7 +6,7 @@ Checks that federation is correctly configured on a matrix server.
 Building
 --------
 
-The tester is written in [golang](https://golang.org/) and built using [gb](https://getgb.io).
+The tester is written in [golang](https://golang.org/) 1.10+ and built using [gb](https://getgb.io).
 
 ```bash
 go get github.com/constabulary/gb/...
