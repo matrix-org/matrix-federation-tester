@@ -79,7 +79,7 @@ type ServerReport struct {
 }
 
 // A WellKnownResult is the combination of data from a matrix server's
-// .well-known file, as well as any error's reported during the lookup.
+// .well-known file, as well as any errors reported during the lookup.
 type WellKnownResult struct {
 	ServerAddress gomatrixserverlib.ServerName `json:"m.server"`
 	Error string `json:"error,omitempty"`
