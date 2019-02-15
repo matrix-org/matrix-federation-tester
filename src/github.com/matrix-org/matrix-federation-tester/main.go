@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -146,9 +147,18 @@ func Report(
 	// Map of network address to connection error.
 	report.ConnectionErrors = make(map[string]error)
 	now := time.Now()
+
+	// Retrieve domain name to send as SNI to server
+	sni, _, valid := gomatrixserverlib.ParseAndValidateServerName(serverHost)
+	if !valid {
+		parseErr := errors.New(fmt.Sprintf("Invalid serverHost %s", serverHost))
+		report.ConnectionErrors["ParseServerName"] = parseErr
+		return &report, parseErr
+	}
+
+	// Iterate through each address and run checks
 	for _, addr := range report.DNSResult.Addrs {
-		host, _, _ := gomatrixserverlib.ParseAndValidateServerName(serverHost)
-		keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverHost, addr, host)
+		keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverHost, addr, sni)
 		if err != nil {
 			report.ConnectionErrors[addr] = err
 			continue
