@@ -17,7 +17,7 @@ import (
 )
 
 // HandleReport handles an HTTP request for a JSON report for matrix server.
-// GET /api/report?server_name=matrix.org&tls_sni=whatever request.
+// GET /api/report?server_name=matrix.org request.
 func HandleReport(w http.ResponseWriter, req *http.Request) {
 	// Set unrestricted Access-Control headers so that this API can be used by
 	// web apps running in browsers.
@@ -34,8 +34,7 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 	}
 	serverName := gomatrixserverlib.ServerName(req.URL.Query().Get("server_name"))
 
-	tlsSNI := req.URL.Query().Get("tls_sni")
-	result, err := JSONReport(serverName, tlsSNI)
+	result, err := JSONReport(serverName)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Printf("Error Generating Report: %q", err.Error())
@@ -48,9 +47,9 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 
 // JSONReport generates a JSON formatted report for a matrix server.
 func JSONReport(
-	serverName gomatrixserverlib.ServerName, sni string,
+	serverName gomatrixserverlib.ServerName,
 ) ([]byte, error) {
-	results, err := Report(serverName, sni)
+	results, err := Report(serverName)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +119,7 @@ type X509CertSummary struct {
 
 // Report creates a ServerReport for a matrix server.
 func Report(
-	serverName gomatrixserverlib.ServerName, sni string,
+	serverName gomatrixserverlib.ServerName,
 ) (*ServerReport, error) {
 	// Host address of the server (can be different from the serverName through SRV/well-known)
 	serverHost := serverName
@@ -148,7 +147,7 @@ func Report(
 	report.ConnectionErrors = make(map[string]error)
 	now := time.Now()
 	for _, addr := range report.DNSResult.Addrs {
-		keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverHost, addr, sni)
+		keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverHost, addr, string(serverHost))
 		if err != nil {
 			report.ConnectionErrors[addr] = err
 			continue
