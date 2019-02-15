@@ -147,7 +147,8 @@ func Report(
 	report.ConnectionErrors = make(map[string]error)
 	now := time.Now()
 	for _, addr := range report.DNSResult.Addrs {
-		keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverHost, addr, string(serverHost))
+		host, _, _ := gomatrixserverlib.ParseAndValidateServerName(serverHost)
+		keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverHost, addr, host)
 		if err != nil {
 			report.ConnectionErrors[addr] = err
 			continue
