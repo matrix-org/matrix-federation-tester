@@ -1,7 +1,3 @@
 .*.swp
-bin
-pkg
 
-vendor/**/.gitignore
-vendor/**/.idea/
-vendor/**/.travis.yml
+matrix-federation-tester

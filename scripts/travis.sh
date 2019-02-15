@@ -3,10 +3,10 @@
 set -exu
 
 # run the tests
-gb test
+go test
 
 # check it builds
-gb build
+go build
 
 # look for lint
 ./scripts/find-lint.sh
