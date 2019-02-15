@@ -82,7 +82,7 @@ type ServerReport struct {
 // .well-known file, as well as any errors reported during the lookup.
 type WellKnownReport struct {
 	ServerAddress gomatrixserverlib.ServerName `json:"m.server"`
-	Error string `json:"error,omitempty"`
+	Error         string                       `json:"error,omitempty"`
 }
 
 // Info is a struct that contains federation checks that are not necessary in
