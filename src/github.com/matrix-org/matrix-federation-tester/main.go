@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -72,6 +71,7 @@ func main() {
 
 // A ServerReport is a report for a matrix server.
 type ServerReport struct {
+	Error             string                      `json:",omitempty"` // Error which happened before connecting to the server.
 	WellKnownResult   WellKnownReport             // The result of looking up the server's .well-known/matrix/server file.
 	DNSResult         gomatrixserverlib.DNSResult // The result of looking up the server in DNS.
 	ConnectionReports map[string]ConnectionReport // The report for each server address we could connect to.
@@ -121,40 +121,46 @@ type X509CertSummary struct {
 // Report creates a ServerReport for a matrix server.
 func Report(
 	serverName gomatrixserverlib.ServerName,
-) (*ServerReport, error) {
-	// Host address of the server (can be different from the serverName through SRV/well-known)
+) (report ServerReport, err error) {
+	// Map of network address to report.
+	report.ConnectionReports = make(map[string]ConnectionReport)
+
+	// Map of network address to connection error.
+	report.ConnectionErrors = make(map[string]error)
+
+	// Host address of the server (can be different from the serverName through well-known)
 	serverHost := serverName
-	var report ServerReport
+
+	// Validate the server name, and retrieve domain name to send as SNI to server
+	sni, _, valid := gomatrixserverlib.ParseAndValidateServerName(serverHost)
+	if !valid {
+		report.Error = fmt.Sprintf("Invalid server name '%s'", serverHost)
+		return
+	}
 
 	// Check for .well-known
-	var err error
 	var wellKnownResult *gomatrixserverlib.WellKnownResult
 	if wellKnownResult, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
 		// Use well-known as new host
 		serverHost = wellKnownResult.NewAddress
 		report.WellKnownResult.ServerAddress = wellKnownResult.NewAddress
+
+		// need to revalidate the server name and update the SNI
+		sni, _, valid = gomatrixserverlib.ParseAndValidateServerName(serverHost)
+		if !valid {
+			report.Error = fmt.Sprintf("Invalid server name '%s' in .well-known result")
+			return
+		}
 	} else {
 		report.WellKnownResult.Error = err.Error()
 	}
 
 	dnsResult, err := gomatrixserverlib.LookupServer(serverHost)
 	if err != nil {
-		return nil, err
+		return
 	}
 	report.DNSResult = *dnsResult
-	// Map of network address to report.
-	report.ConnectionReports = make(map[string]ConnectionReport)
-	// Map of network address to connection error.
-	report.ConnectionErrors = make(map[string]error)
 	now := time.Now()
-
-	// Retrieve domain name to send as SNI to server
-	sni, _, valid := gomatrixserverlib.ParseAndValidateServerName(serverHost)
-	if !valid {
-		parseErr := errors.New(fmt.Sprintf("Invalid serverHost %s", serverHost))
-		report.ConnectionErrors["ParseServerName"] = parseErr
-		return &report, parseErr
-	}
 
 	// Iterate through each address and run checks
 	for _, addr := range report.DNSResult.Addrs {
@@ -205,7 +211,9 @@ func Report(
 		connReport.Keys = &raw
 		report.ConnectionReports[addr] = connReport
 	}
-	return &report, nil
+
+	err = nil
+	return
 }
 
 // infoChecks are checks that are not required for federation, just good-to-knows
