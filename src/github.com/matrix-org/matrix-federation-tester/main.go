@@ -29,7 +29,7 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 	}
 	if req.Method != "GET" {
 		w.WriteHeader(405)
-		fmt.Printf("Unsupported method.")
+		fmt.Printf("Unsupported method.\n")
 		return
 	}
 	serverName := gomatrixserverlib.ServerName(req.URL.Query().Get("server_name"))
@@ -37,7 +37,7 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 	result, err := JSONReport(serverName)
 	if err != nil {
 		w.WriteHeader(500)
-		fmt.Printf("Error Generating Report: %q", err.Error())
+		fmt.Printf("Error Generating Report: %q\n", err.Error())
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
@@ -134,7 +134,7 @@ func Report(
 	// Validate the server name, and retrieve domain name to send as SNI to server
 	sni, _, valid := gomatrixserverlib.ParseAndValidateServerName(serverHost)
 	if !valid {
-		report.Error = fmt.Sprintf("Invalid server name '%s'", serverHost)
+		report.Error = fmt.Sprintf("Invalid server name '%s'\n", serverHost)
 		return
 	}
 
@@ -148,7 +148,7 @@ func Report(
 		// need to revalidate the server name and update the SNI
 		sni, _, valid = gomatrixserverlib.ParseAndValidateServerName(serverHost)
 		if !valid {
-			report.Error = fmt.Sprintf("Invalid server name '%s' in .well-known result")
+			report.Error = fmt.Sprintf("Invalid server name '%s' in .well-known result\n", serverHost)
 			return
 		}
 	} else {
@@ -265,7 +265,7 @@ func enumToString(names map[uint16]string, value uint16) string {
 	if name, ok := names[value]; ok {
 		return name
 	}
-	return fmt.Sprintf("UNKNOWN[0x%x]", value)
+	return fmt.Sprintf("UNKNOWN[0x%x]\n", value)
 }
 
 var (
