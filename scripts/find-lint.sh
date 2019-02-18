@@ -9,7 +9,7 @@ go get github.com/alecthomas/gometalinter/
 gometalinter --config=linter.json --install
 
 echo "Looking for lint..."
-gometalinter --config=linter.json ./...
+gometalinter --config=linter.json src/github.com/matrix-org/matrix-federation-tester
 
 echo "Double checking spelling..."
 misspell -error src *.md
