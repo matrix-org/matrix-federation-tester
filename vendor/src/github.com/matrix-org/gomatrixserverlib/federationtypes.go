@@ -7,7 +7,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/matrix-org/util"
 )
@@ -40,18 +39,21 @@ func ParseAndValidateServerName(serverName ServerName) (host string, port int, v
 		if net.ParseIP(ip) == nil {
 			return
 		}
-	} else if unicode.IsDigit(rune(host[0])) {
-		// must be a valid IPv4 address
-		ip := net.ParseIP(host)
-		if ip == nil || ip.To4() == nil {
+		valid = true
+		return
+	}
+
+	// try parsing as an IPv4 address
+	ip := net.ParseIP(host)
+	if ip != nil && ip.To4() != nil {
+		valid = true
+		return
+	}
+
+	// must be a valid DNS Name
+	for _, r := range host {
+		if !isDNSNameChar(r) {
 			return
-		}
-	} else {
-		// must be a valid DNS Name
-		for _, r := range host {
-			if !isDNSNameChar(r) {
-				return
-			}
 		}
 	}
 
