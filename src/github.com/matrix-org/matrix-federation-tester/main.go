@@ -82,9 +82,8 @@ type ServerReport struct {
 // .well-known file, as well as any errors reported during the lookup, and
 // information on whether .well-known is in use for this homeserver.
 type WellKnownReport struct {
-	ServerAddress  gomatrixserverlib.ServerName `json:"m.server"`
-	Error          error
-	WellKnownInUse bool
+	ServerAddress gomatrixserverlib.ServerName `json:"m.server"`
+	Result        string
 }
 
 // A ConnectionReport is information about a connection made to a matrix server.
@@ -134,8 +133,7 @@ func Report(
 
 	// Check for .well-known
 	var wellKnownResult *gomatrixserverlib.WellKnownResult
-	var inUse bool
-	if wellKnownResult, inUse, err = gomatrixserverlib.LookupWellKnown(serverName); wellKnownResult != nil {
+	if wellKnownResult, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
 		// Use well-known as new host
 		serverHost = wellKnownResult.NewAddress
 		report.WellKnownResult.ServerAddress = wellKnownResult.NewAddress
@@ -146,10 +144,9 @@ func Report(
 			report.Error = fmt.Errorf("Invalid server name '%s' in .well-known result")
 			return
 		}
+	} else {
+		report.WellKnownResult.Result = err.Error()
 	}
-
-	report.WellKnownResult.Error = err
-	report.WellKnownResult.WellKnownInUse = inUse
 
 	dnsResult, err := gomatrixserverlib.LookupServer(serverHost)
 	if err != nil {
@@ -232,7 +229,6 @@ func asReportError(err error) error {
 // touchUpReport converts all the errors in a ServerReport into forms that will be human readable after JSON serialisation.
 func (report *ServerReport) touchUpReport() {
 	report.Error = asReportError(report.Error)
-	report.WellKnownResult.Error = asReportError(report.WellKnownResult.Error)
 	report.DNSResult.SRVError = asReportError(report.DNSResult.SRVError)
 	for host, hostReport := range report.DNSResult.Hosts {
 		hostReport.Error = asReportError(hostReport.Error)
