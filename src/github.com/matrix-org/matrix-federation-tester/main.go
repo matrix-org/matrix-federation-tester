@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -41,7 +42,11 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		w.Write(result)
+		if _, err = w.Write(result); err != nil {
+			// TODO: Unsure whether we want to add error logging to the
+			// federation tester, given it currently doesn't log anything.
+			log.Printf("Error while writing response: %s", err.Error())
+		}
 	}
 }
 
@@ -59,14 +64,19 @@ func JSONReport(
 		return nil, err
 	}
 	var buffer bytes.Buffer
-	json.Indent(&buffer, encoded, "", "  ")
+	if err = json.Indent(&buffer, encoded, "", "  "); err != nil {
+		// TODO: Unsure whether we want to add error logging to the
+		// federation tester, given it currently doesn't log anything.
+		log.Printf("Error while indenting response: %s", err.Error())
+	}
 	return buffer.Bytes(), nil
 }
 
 func main() {
 	http.HandleFunc("/api/report", prometheus.InstrumentHandlerFunc("report", HandleReport))
 	http.Handle("/metrics", prometheus.Handler())
-	http.ListenAndServe(os.Getenv("BIND_ADDRESS"), nil)
+	// ListenAndServe always returns a non-nil error so we want to panic here.
+	log.Panic(http.ListenAndServe(os.Getenv("BIND_ADDRESS"), nil))
 }
 
 // A ServerReport is a report for a matrix server.
