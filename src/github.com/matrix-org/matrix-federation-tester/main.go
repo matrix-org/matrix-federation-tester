@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -43,9 +42,7 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		if _, err = w.Write(result); err != nil {
-			// TODO: Unsure whether we want to add error logging to the
-			// federation tester, given it currently doesn't log anything.
-			log.Printf("Error while writing response: %s", err.Error())
+			fmt.Printf("Error Generating Report: %q\n", err.Error())
 		}
 	}
 }
@@ -65,9 +62,7 @@ func JSONReport(
 	}
 	var buffer bytes.Buffer
 	if err = json.Indent(&buffer, encoded, "", "  "); err != nil {
-		// TODO: Unsure whether we want to add error logging to the
-		// federation tester, given it currently doesn't log anything.
-		log.Printf("Error while indenting response: %s", err.Error())
+		fmt.Printf("Error Generating Report: %q\n", err.Error())
 	}
 	return buffer.Bytes(), nil
 }
@@ -170,13 +165,12 @@ func Report(
 		return
 	}
 	report.DNSResult = *dnsResult
-	now := time.Now()
 
 	// Iterate through each address and run checks
 	var connReport *ConnectionReport
 	for _, addr := range report.DNSResult.Addrs {
 		if connReport, err = connCheck(
-			addr, serverHost, serverName, sni, wellKnownResult, now,
+			addr, serverHost, serverName, sni, wellKnownResult,
 		); err != nil {
 			report.ConnectionErrors[addr] = err
 		} else {
@@ -190,7 +184,7 @@ func Report(
 
 func connCheck(
 	addr string, serverHost, serverName gomatrixserverlib.ServerName, sni string,
-	wellKnownResult *gomatrixserverlib.WellKnownResult, now time.Time,
+	wellKnownResult *gomatrixserverlib.WellKnownResult,
 ) (*ConnectionReport, error) {
 	keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverHost, addr, sni)
 	if err != nil {
@@ -232,7 +226,7 @@ func connCheck(
 	}
 	connReport.Cipher.Version = enumToString(tlsVersions, connState.Version)
 	connReport.Cipher.CipherSuite = enumToString(tlsCipherSuites, connState.CipherSuite)
-	connReport.Checks, connReport.Ed25519VerifyKeys = gomatrixserverlib.CheckKeys(serverName, now, *keys)
+	connReport.Checks, connReport.Ed25519VerifyKeys = gomatrixserverlib.CheckKeys(serverName, time.Now(), *keys)
 	connReport.Info = infoChecks(wellKnownResult)
 	raw := json.RawMessage(keys.Raw)
 	connReport.Keys = &raw
