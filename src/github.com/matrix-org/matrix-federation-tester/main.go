@@ -167,12 +167,11 @@ func Report(
 	report.DNSResult = *dnsResult
 
 	// Iterate through each address and run checks
-	var connReport *ConnectionReport
 	for _, addr := range report.DNSResult.Addrs {
-		if connReport, err = connCheck(
+		if connReport, connErr := connCheck(
 			addr, serverHost, serverName, sni, wellKnownResult,
 		); err != nil {
-			report.ConnectionErrors[addr] = err
+			report.ConnectionErrors[addr] = connErr
 		} else {
 			report.ConnectionReports[addr] = *connReport
 		}
