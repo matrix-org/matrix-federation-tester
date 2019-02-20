@@ -177,7 +177,6 @@ func Report(
 		}
 	}
 
-	err = nil
 	return
 }
 
