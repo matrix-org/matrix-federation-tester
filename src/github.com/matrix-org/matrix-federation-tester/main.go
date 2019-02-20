@@ -182,6 +182,13 @@ func Report(
 	return
 }
 
+// connCheck generates a connection report for a given address.
+// It's given the address to generate a report for, the server's host (which can
+// differ from the server's name if .well-known delegation is in use, and can be
+// either a single hostname or a hostname and a port), the server's name, the
+// SNI to send to the server when talking to it (which is the hostname part of
+// serverHost), and the result of a .well-known lookup.
+// Returns an error if the keys for the server couldn't be fetched.
 func connCheck(
 	addr string, serverHost, serverName gomatrixserverlib.ServerName, sni string,
 	wellKnownResult *gomatrixserverlib.WellKnownResult,
