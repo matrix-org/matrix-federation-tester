@@ -41,7 +41,9 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		w.Write(result)
+		if _, err = w.Write(result); err != nil {
+			fmt.Printf("Error Generating Report: %q\n", err.Error())
+		}
 	}
 }
 
@@ -59,14 +61,17 @@ func JSONReport(
 		return nil, err
 	}
 	var buffer bytes.Buffer
-	json.Indent(&buffer, encoded, "", "  ")
+	if err = json.Indent(&buffer, encoded, "", "  "); err != nil {
+		fmt.Printf("Error Generating Report: %q\n", err.Error())
+	}
 	return buffer.Bytes(), nil
 }
 
 func main() {
 	http.HandleFunc("/api/report", prometheus.InstrumentHandlerFunc("report", HandleReport))
 	http.Handle("/metrics", prometheus.Handler())
-	http.ListenAndServe(os.Getenv("BIND_ADDRESS"), nil)
+	// ListenAndServe always returns a non-nil error so we want to panic here.
+	panic(http.ListenAndServe(os.Getenv("BIND_ADDRESS"), nil))
 }
 
 // A ServerReport is a report for a matrix server.
@@ -96,11 +101,11 @@ type Info struct {
 type ConnectionReport struct {
 	Certificates      []X509CertSummary                                          // Summary information for each x509 certificate served up by this server.
 	Cipher            CipherSummary                                              // Summary information on the TLS cipher used by this server.
-	Keys              *json.RawMessage                                           // The server key JSON returned by this server.
 	Checks            gomatrixserverlib.KeyChecks                                // Checks applied to the server and their results.
-	Info              Info                                                       // Checks that are not necessary to pass, rather simply informative.
+	Keys              *json.RawMessage                                           // The server key JSON returned by this server.
 	Errors            []error                                                    // String slice describing any problems encountered during testing.
 	Ed25519VerifyKeys map[gomatrixserverlib.KeyID]gomatrixserverlib.Base64String // The Verify keys for this server or nil if the checks were not ok.
+	Info              Info                                                       // Checks that are not necessary to pass, rather simply informative.
 	ValidCertificates bool                                                       // The X509 certificates have been verified by the system root CAs.
 }
 
@@ -160,66 +165,82 @@ func Report(
 		return
 	}
 	report.DNSResult = *dnsResult
-	now := time.Now()
 
 	// Iterate through each address and run checks
 	for _, addr := range report.DNSResult.Addrs {
-		keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverHost, addr, sni)
-		if err != nil {
-			report.ConnectionErrors[addr] = err
-			continue
+		if connReport, connErr := connCheck(
+			addr, serverHost, serverName, sni, wellKnownResult,
+		); err != nil {
+			report.ConnectionErrors[addr] = connErr
+		} else {
+			report.ConnectionReports[addr] = *connReport
 		}
-		var connReport ConnectionReport
-		// Slice of human readable errors found during testing.
-		connReport.Errors = make([]error, 0, 0)
-
-		// Check for valid X509 certificate
-		intermediateCerts := x509.NewCertPool()
-		var directCert *x509.Certificate
-		for _, cert := range connState.PeerCertificates {
-			// Non-direct (intermediate) certificates are those without a populated DNSNames slice
-			if cert.DNSNames == nil {
-				intermediateCerts.AddCert(cert)
-			} else {
-				directCert = cert
-			}
-		}
-
-		if directCert != nil {
-			valid, err := gomatrixserverlib.IsValidCertificate(serverHost, directCert, intermediateCerts)
-			if err != nil {
-				connReport.Errors = append(connReport.Errors, asReportError(err))
-			}
-			connReport.ValidCertificates = valid
-		}
-
-		for _, cert := range connState.PeerCertificates {
-			fingerprint := sha256.Sum256(cert.Raw)
-			summary := X509CertSummary{
-				SubjectCommonName: cert.Subject.CommonName,
-				IssuerCommonName:  cert.Issuer.CommonName,
-				SHA256Fingerprint: fingerprint[:],
-				DNSNames:          cert.DNSNames,
-			}
-			connReport.Certificates = append(connReport.Certificates, summary)
-		}
-		connReport.Cipher.Version = enumToString(tlsVersions, connState.Version)
-		connReport.Cipher.CipherSuite = enumToString(tlsCipherSuites, connState.CipherSuite)
-		connReport.Checks, connReport.Ed25519VerifyKeys = gomatrixserverlib.CheckKeys(serverName, now, *keys)
-		connReport.Info = infoChecks(serverName, wellKnownResult)
-		raw := json.RawMessage(keys.Raw)
-		connReport.Keys = &raw
-		report.ConnectionReports[addr] = connReport
 	}
 
-	err = nil
 	return
 }
 
+// connCheck generates a connection report for a given address.
+// It's given the address to generate a report for, the server's host (which can
+// differ from the server's name if .well-known delegation is in use, and can be
+// either a single hostname or a hostname and a port), the server's name, the
+// SNI to send to the server when talking to it (which is the hostname part of
+// serverHost), and the result of a .well-known lookup.
+// Returns an error if the keys for the server couldn't be fetched.
+func connCheck(
+	addr string, serverHost, serverName gomatrixserverlib.ServerName, sni string,
+	wellKnownResult *gomatrixserverlib.WellKnownResult,
+) (*ConnectionReport, error) {
+	keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverHost, addr, sni)
+	if err != nil {
+		return nil, err
+	}
+	var connReport = new(ConnectionReport)
+	// Slice of human readable errors found during testing.
+	connReport.Errors = make([]error, 0, 0)
+
+	// Check for valid X509 certificate
+	intermediateCerts := x509.NewCertPool()
+	var directCert *x509.Certificate
+	for _, cert := range connState.PeerCertificates {
+		// Non-direct (intermediate) certificates are those without a populated DNSNames slice
+		if cert.DNSNames == nil {
+			intermediateCerts.AddCert(cert)
+		} else {
+			directCert = cert
+		}
+	}
+
+	if directCert != nil {
+		valid, err := gomatrixserverlib.IsValidCertificate(serverHost, directCert, intermediateCerts)
+		if err != nil {
+			connReport.Errors = append(connReport.Errors, asReportError(err))
+		}
+		connReport.ValidCertificates = valid
+	}
+
+	for _, cert := range connState.PeerCertificates {
+		fingerprint := sha256.Sum256(cert.Raw)
+		summary := X509CertSummary{
+			SubjectCommonName: cert.Subject.CommonName,
+			IssuerCommonName:  cert.Issuer.CommonName,
+			SHA256Fingerprint: fingerprint[:],
+			DNSNames:          cert.DNSNames,
+		}
+		connReport.Certificates = append(connReport.Certificates, summary)
+	}
+	connReport.Cipher.Version = enumToString(tlsVersions, connState.Version)
+	connReport.Cipher.CipherSuite = enumToString(tlsCipherSuites, connState.CipherSuite)
+	connReport.Checks, connReport.Ed25519VerifyKeys = gomatrixserverlib.CheckKeys(serverName, time.Now(), *keys)
+	connReport.Info = infoChecks(wellKnownResult)
+	raw := json.RawMessage(keys.Raw)
+	connReport.Keys = &raw
+
+	return connReport, nil
+}
+
 // infoChecks are checks that are not required for federation, just good-to-knows
-func infoChecks(
-	serverName gomatrixserverlib.ServerName, wellKnown *gomatrixserverlib.WellKnownResult,
-) Info {
+func infoChecks(wellKnown *gomatrixserverlib.WellKnownResult) Info {
 	info := Info{}
 
 	// Well-known is checked earlier for redirecting the test servername, so just
