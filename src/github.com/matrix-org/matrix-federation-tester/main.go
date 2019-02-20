@@ -71,7 +71,7 @@ func main() {
 	http.HandleFunc("/api/report", prometheus.InstrumentHandlerFunc("report", HandleReport))
 	http.Handle("/metrics", prometheus.Handler())
 	// ListenAndServe always returns a non-nil error so we want to panic here.
-	log.Panic(http.ListenAndServe(os.Getenv("BIND_ADDRESS"), nil))
+	panic(http.ListenAndServe(os.Getenv("BIND_ADDRESS"), nil))
 }
 
 // A ServerReport is a report for a matrix server.
