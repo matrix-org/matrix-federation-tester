@@ -170,7 +170,7 @@ func Report(
 	for _, addr := range report.DNSResult.Addrs {
 		if connReport, connErr := connCheck(
 			addr, serverHost, serverName, sni, wellKnownResult,
-		); err != nil {
+		); connErr != nil {
 			report.ConnectionErrors[addr] = connErr
 		} else {
 			report.ConnectionReports[addr] = *connReport
