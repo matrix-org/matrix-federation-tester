@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+var (
+	errNoWellKnown = errors.New("No .well-known found")
+)
+
 // WellKnownResult is the result of looking up a matrix server's well-known file.
 // Located at https://<server_name>/.well-known/matrix/server
 type WellKnownResult struct {
@@ -34,7 +38,7 @@ func LookupWellKnown(serverNameType ServerName) (*WellKnownResult, error) {
 		_ = resp.Body.Close()
 	}()
 	if resp.StatusCode != 200 {
-		return nil, errors.New("No .well-known found")
+		return nil, errNoWellKnown
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)

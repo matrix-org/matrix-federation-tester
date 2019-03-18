@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -81,6 +82,13 @@ type ServerReport struct {
 	DNSResult         gomatrixserverlib.DNSResult // The result of looking up the server in DNS.
 	ConnectionReports map[string]ConnectionReport // The report for each server address we could connect to.
 	ConnectionErrors  map[string]error            // The errors for each server address we couldn't connect to.
+	Version           VersionReport               // The version information for the server
+}
+
+type VersionReport struct {
+	Name    string `json:"name,omitempty"`
+	Version string `json:"version,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // A WellKnownReport is the combination of data from a matrix server's
@@ -158,6 +166,15 @@ func Report(
 		}
 	} else {
 		report.WellKnownResult.Error = err.Error()
+	}
+
+	// Lookup server version
+	version, err := lookupServerVersion(serverHost)
+	if err == nil {
+		report.Version.Name = version.Server.Name
+		report.Version.Version = version.Server.Version
+	} else {
+		report.Version.Error = err.Error()
 	}
 
 	dnsResult, err := gomatrixserverlib.LookupServer(serverHost)
@@ -248,6 +265,34 @@ func infoChecks(wellKnown *gomatrixserverlib.WellKnownResult) Info {
 	info.WellKnownInUse = (wellKnown != nil)
 
 	return info
+}
+
+func lookupServerVersion(serverName gomatrixserverlib.ServerName) (*gomatrixserverlib.Version, error) {
+	versionPath := "/_matrix/federation/v1/version"
+	versionURL := "https://" + string(serverName) + versionPath
+
+	// Request server's well-known record
+	resp, err := http.Get(versionURL)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("No version information was found for this server")
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert result to JSON
+	var version gomatrixserverlib.Version
+	err = json.Unmarshal(body, &version)
+
+	return &version, err
 }
 
 // A ReportError is a version of a golang error that is human readable when serialised as JSON.
