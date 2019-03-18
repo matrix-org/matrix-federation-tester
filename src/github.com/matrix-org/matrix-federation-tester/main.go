@@ -85,6 +85,8 @@ type ServerReport struct {
 	Version           VersionReport               // The version information for the server
 }
 
+// A VersionReport is a combination of data from matrix server's version
+// information, as well as any errors reported during the lookup.
 type VersionReport struct {
 	Name    string `json:"name,omitempty"`
 	Version string `json:"version,omitempty"`
@@ -269,15 +271,16 @@ func infoChecks(wellKnown *gomatrixserverlib.WellKnownResult) Info {
 
 func lookupServerVersion(serverName gomatrixserverlib.ServerName) (*gomatrixserverlib.Version, error) {
 	versionPath := "/_matrix/federation/v1/version"
-	versionURL := "https://" + string(serverName) + versionPath
 
 	// Request server's well-known record
-	resp, err := http.Get(versionURL)
+	resp, err := http.Get("https://" + string(serverName) + versionPath)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		_ = resp.Body.Close()
+		if err = resp.Body.Close(); err != nil {
+			return
+		}
 	}()
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("No version information was found for this server")
