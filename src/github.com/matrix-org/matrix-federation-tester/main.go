@@ -272,7 +272,7 @@ func infoChecks(wellKnown *gomatrixserverlib.WellKnownResult) Info {
 func lookupServerVersion(serverName gomatrixserverlib.ServerName) (*gomatrixserverlib.Version, error) {
 	versionPath := "/_matrix/federation/v1/version"
 
-	// Request server's well-known record
+	// Request server's version information
 	resp, err := http.Get("https://" + string(serverName) + versionPath)
 	if err != nil {
 		return nil, err
