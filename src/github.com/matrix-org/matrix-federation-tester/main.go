@@ -82,7 +82,7 @@ func main() {
 type ServerReport struct {
 	Error             string                      `json:",omitempty"` // Error which happened before connecting to the server.
 	WellKnownResult   WellKnownReport             // The result of looking up the server's .well-known/matrix/server file.
-	DNSResult         DNSResult // The result of looking up the server in DNS.
+	DNSResult         DNSResult                   // The result of looking up the server in DNS.
 	ConnectionReports map[string]ConnectionReport // The report for each server address we could connect to.
 	ConnectionErrors  map[string]error            // The errors for each server address we couldn't connect to.
 	Version           VersionReport               // The version information for the server
@@ -273,7 +273,10 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 	// Look up the IP addresses for each host.
 	for host, records := range hosts {
 		// Ignore any DNS errors when looking up the CNAME. We only are interested in it for debugging.
-		cname, _ := net.LookupCNAME(host)
+		cname, err := net.LookupCNAME(host)
+		if err != nil {
+			continue
+		}
 		addrs, err := net.LookupHost(host)
 		result.Hosts[host] = HostResult{
 			CName: cname,
