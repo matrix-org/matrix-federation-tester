@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
@@ -81,6 +82,15 @@ type ServerReport struct {
 	DNSResult         gomatrixserverlib.DNSResult // The result of looking up the server in DNS.
 	ConnectionReports map[string]ConnectionReport // The report for each server address we could connect to.
 	ConnectionErrors  map[string]error            // The errors for each server address we couldn't connect to.
+	Version           VersionReport               // The version information for the server
+}
+
+// A VersionReport is a combination of data from matrix server's version
+// information, as well as any errors reported during the lookup.
+type VersionReport struct {
+	Name    string `json:"name,omitempty"`
+	Version string `json:"version,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // A WellKnownReport is the combination of data from a matrix server's
@@ -158,6 +168,16 @@ func Report(
 		}
 	} else {
 		report.WellKnownResult.Error = err.Error()
+	}
+
+	// Lookup server version
+	client := gomatrixserverlib.NewClient()
+	version, err := client.GetVersion(context.TODO(), serverHost)
+	if err == nil {
+		report.Version.Name = version.Server.Name
+		report.Version.Version = version.Server.Version
+	} else {
+		report.Version.Error = err.Error()
 	}
 
 	dnsResult, err := gomatrixserverlib.LookupServer(serverHost)

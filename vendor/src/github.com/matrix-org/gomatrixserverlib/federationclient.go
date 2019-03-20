@@ -172,6 +172,17 @@ func (ac *FederationClient) LookupRoomAlias(
 	return
 }
 
+// GetEvent gets an event by ID from a remote server.
+// See https://matrix.org/docs/spec/server_server/r0.1.1.html#get-matrix-federation-v1-event-eventid
+func (ac *FederationClient) GetEvent(
+	ctx context.Context, s ServerName, eventID string,
+) (res Transaction, err error) {
+	path := federationPathPrefix + "/event/" + url.PathEscape(eventID)
+	req := NewFederationRequest("GET", s, path)
+	err = ac.doRequest(ctx, req, &res)
+	return
+}
+
 // Backfill asks a homeserver for events early enough for them to not be in the
 // local database.
 // See https://matrix.org/docs/spec/server_server/unstable.html#get-matrix-federation-v1-backfill-roomid
