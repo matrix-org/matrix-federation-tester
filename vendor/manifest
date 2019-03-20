@@ -28,6 +28,12 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/matrix-org/util",
+			"repository": "https://github.com/matrix-org/util",
+			"revision": "2e2df66af2f5dcf30843b5793134a0f0ce9338c6",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/matttproud/golang_protobuf_extensions/pbutil",
 			"repository": "https://github.com/matttproud/golang_protobuf_extensions",
 			"revision": "c12348ce28de40eed0136aa2b644d0ee0650e56c",
