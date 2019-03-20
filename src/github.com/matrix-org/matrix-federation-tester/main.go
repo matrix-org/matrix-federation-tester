@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
@@ -171,7 +172,8 @@ func Report(
 	}
 
 	// Lookup server version
-	version, err := lookupServerVersion(serverHost)
+	client := gomatrixserverlib.NewClient()
+	version, err := client.GetVersion(context.TODO(), serverHost)
 	if err == nil {
 		report.Version.Name = version.Server.Name
 		report.Version.Version = version.Server.Version
@@ -267,35 +269,6 @@ func infoChecks(wellKnown *gomatrixserverlib.WellKnownResult) Info {
 	info.WellKnownInUse = (wellKnown != nil)
 
 	return info
-}
-
-func lookupServerVersion(serverName gomatrixserverlib.ServerName) (*gomatrixserverlib.Version, error) {
-	versionPath := "/_matrix/federation/v1/version"
-
-	// Request server's version information
-	resp, err := http.Get("https://" + string(serverName) + versionPath)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err = resp.Body.Close(); err != nil {
-			return
-		}
-	}()
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("No version information was found for this server")
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert result to JSON
-	var version gomatrixserverlib.Version
-	err = json.Unmarshal(body, &version)
-
-	return &version, err
 }
 
 // A ReportError is a version of a golang error that is human readable when serialised as JSON.

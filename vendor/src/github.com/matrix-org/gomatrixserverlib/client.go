@@ -207,6 +207,27 @@ func (fc *Client) GetServerKeys(
 	return body, err
 }
 
+// GetVersion gets the version information of a homeserver.
+// See https://matrix.org/docs/spec/server_server/r0.1.1.html#get-matrix-federation-v1-version
+func (fc *Client) GetVersion(
+	ctx context.Context, s ServerName,
+) (res Version, err error) {
+	// Construct a request for version information
+	url := url.URL{
+		Scheme: "matrix",
+		Host:   string(s),
+		Path:   "/_matrix/federation/v1/version",
+	}
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return
+	}
+
+	// Make the request and parse the response
+	err = fc.DoRequestAndParseResponse(ctx, req, &res)
+	return
+}
+
 // LookupServerKeys looks up the keys for a matrix server from a matrix server.
 // The first argument is the name of the matrix server to download the keys from.
 // The second argument is a map from (server name, key ID) pairs to timestamps.
