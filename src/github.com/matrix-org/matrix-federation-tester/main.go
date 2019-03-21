@@ -103,9 +103,7 @@ type WellKnownReport struct {
 // Info is a struct that contains federation checks that are not necessary in
 // order for proper federation. These are placed in a separate field in order to
 // make parsing the resulting JSON simpler
-type Info struct {
-	WellKnownInUse bool // Whether the server is using .well-known
-}
+type Info struct{}
 
 // A ConnectionReport is information about a connection made to a matrix server.
 type ConnectionReport struct {
@@ -189,7 +187,7 @@ func Report(
 	// Iterate through each address and run checks
 	for _, addr := range report.DNSResult.Addrs {
 		if connReport, connErr := connCheck(
-			addr, serverHost, serverName, sni, wellKnownResult,
+			addr, serverHost, serverName, sni,
 		); connErr != nil {
 			report.ConnectionErrors[addr] = connErr
 		} else {
@@ -209,7 +207,6 @@ func Report(
 // Returns an error if the keys for the server couldn't be fetched.
 func connCheck(
 	addr string, serverHost, serverName gomatrixserverlib.ServerName, sni string,
-	wellKnownResult *gomatrixserverlib.WellKnownResult,
 ) (*ConnectionReport, error) {
 	keys, connState, err := gomatrixserverlib.FetchKeysDirect(serverHost, addr, sni)
 	if err != nil {
@@ -252,7 +249,7 @@ func connCheck(
 	connReport.Cipher.Version = enumToString(tlsVersions, connState.Version)
 	connReport.Cipher.CipherSuite = enumToString(tlsCipherSuites, connState.CipherSuite)
 	connReport.Checks, connReport.Ed25519VerifyKeys = gomatrixserverlib.CheckKeys(serverName, time.Now(), *keys)
-	connReport.Info = infoChecks(wellKnownResult)
+	connReport.Info = infoChecks()
 	raw := json.RawMessage(keys.Raw)
 	connReport.Keys = &raw
 
@@ -260,14 +257,8 @@ func connCheck(
 }
 
 // infoChecks are checks that are not required for federation, just good-to-knows
-func infoChecks(wellKnown *gomatrixserverlib.WellKnownResult) Info {
-	info := Info{}
-
-	// Well-known is checked earlier for redirecting the test servername, so just
-	// reuse that result
-	info.WellKnownInUse = (wellKnown != nil)
-
-	return info
+func infoChecks() Info {
+	return Info{}
 }
 
 // A ReportError is a version of a golang error that is human readable when serialised as JSON.
