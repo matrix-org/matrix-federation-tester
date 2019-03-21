@@ -97,7 +97,7 @@ type VersionReport struct {
 // .well-known file, as well as any errors reported during the lookup.
 type WellKnownReport struct {
 	ServerAddress gomatrixserverlib.ServerName `json:"m.server"`
-	Error         string                       `json:"error,omitempty"`
+	Result        string                       `json:"result,omitempty"`
 }
 
 // Info is a struct that contains federation checks that are not necessary in
@@ -167,7 +167,7 @@ func Report(
 			return
 		}
 	} else {
-		report.WellKnownResult.Error = err.Error()
+		report.WellKnownResult.Result = err.Error()
 	}
 
 	// Lookup server version
