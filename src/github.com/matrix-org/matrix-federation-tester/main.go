@@ -220,8 +220,6 @@ func Report(
 }
 
 // lookupServer looks up a matrix server in DNS.
-// This function is rendered obsolete by ResolveServer, and will be removed in
-// the future.
 func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) { // nolint: gocyclo
 	var result DNSResult
 	result.Hosts = map[string]HostResult{}
