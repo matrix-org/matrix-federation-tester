@@ -9,4 +9,4 @@ GO111MODULE=on go test
 GO111MODULE=on go build
 
 # look for lint
-./scripts/find-lint.sh
+GO111MODULE=on ./scripts/find-lint.sh
