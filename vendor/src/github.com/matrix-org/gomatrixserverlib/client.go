@@ -22,10 +22,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/matrix-org/gomatrix"
@@ -60,36 +60,44 @@ func NewClientWithTimeout(timeout time.Duration) *Client {
 }
 
 type federationTripper struct {
-	transport http.RoundTripper
+	// transports maps an TLS server name with an HTTP transport.
+	transports      map[string]http.RoundTripper
+	transportsMutex sync.Mutex
 }
 
 func newFederationTripper() *federationTripper {
-	// TODO: Verify ceritificates
 	return &federationTripper{
-		transport: &http.Transport{
-			// Set our own DialTLS function to avoid the default net/http SNI.
-			// By default net/http and crypto/tls set the SNI to the target host.
-			// By avoiding the default implementation we can keep the ServerName
-			// as the empty string so that crypto/tls doesn't add SNI.
-			DialTLS: func(network, addr string) (net.Conn, error) {
-				rawconn, err := net.Dial(network, addr)
-				if err != nil {
-					return nil, err
-				}
-				// Wrap a raw connection ourselves since tls.Dial defaults the SNI
-				conn := tls.Client(rawconn, &tls.Config{
-					ServerName: "",
-					// TODO: We should be checking that the TLS certificate we see here matches
-					//       one of the allowed SHA-256 fingerprints for the server.
-					InsecureSkipVerify: true, // nolint: gas
-				})
-				if err := conn.Handshake(); err != nil {
-					return nil, err
-				}
-				return conn, nil
-			},
-		},
+		transports: make(map[string]http.RoundTripper),
 	}
+}
+
+// getTransport returns a http.Transport instance with a TLS configuration using
+// the given server name for SNI. It also creates the instance if there isn't
+// any for this server name.
+// We need to use one transport per TLS server name (instead of giving our round
+// tripper a single transport) because there is no way to specify the TLS
+// ServerName on a per-connection basis.
+func (f *federationTripper) getTransport(tlsServerName string) (transport http.RoundTripper) {
+	var ok bool
+
+	f.transportsMutex.Lock()
+
+	// Create the transport if we don't have any for this TLS server name.
+	if transport, ok = f.transports[tlsServerName]; !ok {
+		transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				ServerName: tlsServerName,
+				// TODO: Remove this when we enforce MSC1711.
+				InsecureSkipVerify: true,
+			},
+		}
+
+		f.transports[tlsServerName] = transport
+	}
+
+	f.transportsMutex.Unlock()
+
+	return transport
 }
 
 func makeHTTPSURL(u *url.URL, addr string) (httpsURL url.URL) {
@@ -101,21 +109,22 @@ func makeHTTPSURL(u *url.URL, addr string) (httpsURL url.URL) {
 
 func (f *federationTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	serverName := ServerName(r.URL.Host)
-	dnsResult, err := LookupServer(serverName)
+	resolutionResults, err := ResolveServer(serverName)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(dnsResult.Addrs) == 0 {
+	if len(resolutionResults) == 0 {
 		return nil, fmt.Errorf("no address found for matrix host %v", serverName)
 	}
 
 	var resp *http.Response
 	// TODO: respect the priority and weight fields from the SRV record
-	for _, addr := range dnsResult.Addrs {
-		u := makeHTTPSURL(r.URL, addr)
+	for _, result := range resolutionResults {
+		u := makeHTTPSURL(r.URL, result.Destination)
 		r.URL = &u
-		resp, err = f.transport.RoundTrip(r)
+		r.Host = string(result.Host)
+		resp, err = f.getTransport(result.TLSServerName).RoundTrip(r)
 		if err == nil {
 			return resp, nil
 		}
@@ -196,6 +205,27 @@ func (fc *Client) GetServerKeys(
 		ctx, req, &body,
 	)
 	return body, err
+}
+
+// GetVersion gets the version information of a homeserver.
+// See https://matrix.org/docs/spec/server_server/r0.1.1.html#get-matrix-federation-v1-version
+func (fc *Client) GetVersion(
+	ctx context.Context, s ServerName,
+) (res Version, err error) {
+	// Construct a request for version information
+	url := url.URL{
+		Scheme: "matrix",
+		Host:   string(s),
+		Path:   "/_matrix/federation/v1/version",
+	}
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return
+	}
+
+	// Make the request and parse the response
+	err = fc.DoRequestAndParseResponse(ctx, req, &res)
+	return
 }
 
 // LookupServerKeys looks up the keys for a matrix server from a matrix server.

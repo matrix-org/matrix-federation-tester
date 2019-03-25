@@ -9,7 +9,8 @@ go get github.com/alecthomas/gometalinter/
 gometalinter --config=linter.json --install
 
 echo "Looking for lint..."
-gometalinter --config=linter.json
+export GOPATH=$GOPATH:$PWD:$PWD/vendor
+gometalinter --config=linter.json ./src/...
 
 echo "Double checking spelling..."
 misspell -error src *.md

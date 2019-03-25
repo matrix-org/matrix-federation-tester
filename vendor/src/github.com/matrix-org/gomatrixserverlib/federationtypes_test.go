@@ -9,6 +9,7 @@ func TestParseServerName(t *testing.T) {
 	validTests := map[string][]interface{}{
 		"www.example.org:1234":         {"www.example.org", 1234},
 		"www.example.org":              {"www.example.org", -1},
+		"1234.example.com":             {"1234.example.com", -1},
 		"1.1.1.1:1234":                 {"1.1.1.1", 1234},
 		"1.1.1.1":                      {"1.1.1.1", -1},
 		"[1fff:0:a88:85a3::ac1f]:1234": {"[1fff:0:a88:85a3::ac1f]", 1234},
@@ -33,8 +34,8 @@ func TestParseServerName(t *testing.T) {
 		// ipv6 not in square brackets
 		"2001:0db8::ff00:0042",
 
-		// host starts with a digit
-		"0test.com",
+		// host with invalid characters
+		"test_test.com",
 
 		// ipv6 with insufficient parts
 		"[2001:0db8:0000:0000:0000:ff00:0042]",
