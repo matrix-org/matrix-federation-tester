@@ -129,10 +129,10 @@ type ConnectionReport struct {
 	Certificates      []X509CertSummary                                          // Summary information for each x509 certificate served up by this server.
 	Cipher            CipherSummary                                              // Summary information on the TLS cipher used by this server.
 	Checks            ConnectionChecks                                           // Checks applied to the server and their results.
-	Keys              *json.RawMessage                                           // The server key JSON returned by this server.
 	Errors            []error                                                    // String slice describing any problems encountered during testing.
 	Ed25519VerifyKeys map[gomatrixserverlib.KeyID]gomatrixserverlib.Base64String // The Verify keys for this server or nil if the checks were not ok.
 	Info              Info                                                       // Checks that are not necessary to pass, rather simply informative.
+	Keys              *json.RawMessage                                           // The server key JSON returned by this server.
 }
 
 // ConnectionChecks represents the result of the checks done on a connection
