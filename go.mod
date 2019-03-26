@@ -1,9 +1,7 @@
 module github.com/matrix-org/matrix-federation-tester
 
 require (
-	github.com/frankban/quicktest v1.2.2 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
-	github.com/kr/pty v1.1.4 // indirect
 	github.com/matrix-org/gomatrix v0.0.0-20190320223805-54b415d5fa9d // indirect
 	github.com/matrix-org/gomatrixserverlib v0.0.0-20190321150831-a34687d2ceb7
 	github.com/miekg/dns v1.1.6 // indirect
