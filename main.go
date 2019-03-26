@@ -128,12 +128,19 @@ type Info struct{}
 type ConnectionReport struct {
 	Certificates      []X509CertSummary                                          // Summary information for each x509 certificate served up by this server.
 	Cipher            CipherSummary                                              // Summary information on the TLS cipher used by this server.
-	Checks            gomatrixserverlib.KeyChecks                                // Checks applied to the server and their results.
+	Checks            ConnectionChecks                                           // Checks applied to the server and their results.
 	Keys              *json.RawMessage                                           // The server key JSON returned by this server.
 	Errors            []error                                                    // String slice describing any problems encountered during testing.
 	Ed25519VerifyKeys map[gomatrixserverlib.KeyID]gomatrixserverlib.Base64String // The Verify keys for this server or nil if the checks were not ok.
 	Info              Info                                                       // Checks that are not necessary to pass, rather simply informative.
-	ValidCertificates bool                                                       // The X509 certificates have been verified by the system root CAs.
+}
+
+// ConnectionChecks represents the result of the checks done on a connection
+// made to a Matrix homeserver. It extends the gomatrixserverlib.KeyChecks
+// structure.
+type ConnectionChecks struct {
+	gomatrixserverlib.KeyChecks      // Checks done by gomatrixserverlib from the keys exposed by the server.
+	ValidCertificates           bool // The X509 certificates have been verified by the system root CAs.
 }
 
 // A CipherSummary is a summary of the TLS version and Cipher used in a TLS connection.
@@ -323,7 +330,7 @@ func connCheck(
 	if err != nil {
 		connReport.Errors = append(connReport.Errors, asReportError(err))
 	}
-	connReport.ValidCertificates = valid
+	connReport.Checks.ValidCertificates = valid
 
 	for _, cert := range connState.PeerCertificates {
 		fingerprint := sha256.Sum256(cert.Raw)
@@ -337,7 +344,10 @@ func connCheck(
 	}
 	connReport.Cipher.Version = enumToString(tlsVersions, connState.Version)
 	connReport.Cipher.CipherSuite = enumToString(tlsCipherSuites, connState.CipherSuite)
-	connReport.Checks, connReport.Ed25519VerifyKeys = gomatrixserverlib.CheckKeys(serverName, time.Now(), *keys)
+	connReport.Checks.KeyChecks, connReport.Ed25519VerifyKeys = gomatrixserverlib.CheckKeys(serverName, time.Now(), *keys)
+	// Certificate validity verification isn't done by CheckKeys so we need to
+	// make sure AllChecksOK is false if it failed.
+	connReport.Checks.AllChecksOK = connReport.Checks.AllChecksOK && connReport.Checks.ValidCertificates
 	connReport.Info = infoChecks()
 	raw := json.RawMessage(keys.Raw)
 	connReport.Keys = &raw
