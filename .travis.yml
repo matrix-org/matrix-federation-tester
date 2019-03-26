@@ -1,9 +1,7 @@
 language: go
 go:
- - 1.10.x
-
-install:
- - go get github.com/constabulary/gb/...
+ - 1.11.x
+ - 1.12.x
 
 script:
  - ./scripts/travis.sh
