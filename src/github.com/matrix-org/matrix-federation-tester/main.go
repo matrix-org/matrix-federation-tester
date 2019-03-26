@@ -310,24 +310,20 @@ func connCheck(
 	connReport.Errors = make([]error, 0, 0)
 
 	// Check for valid X509 certificate
+	// We can assume connState.PeerCertificates[0] exists because tls returns an
+	// error if the message contained 0 certificates, cf
+	// https://golang.org/src/crypto/tls/handshake_client.go#L445
+	leafCert := connState.PeerCertificates[0]
 	intermediateCerts := x509.NewCertPool()
-	var directCert *x509.Certificate
-	for _, cert := range connState.PeerCertificates {
-		// Non-direct (intermediate) certificates are those without a populated DNSNames slice
-		if cert.DNSNames == nil {
-			intermediateCerts.AddCert(cert)
-		} else {
-			directCert = cert
-		}
+	for _, cert := range connState.PeerCertificates[1:] {
+		intermediateCerts.AddCert(cert)
 	}
 
-	if directCert != nil {
-		valid, err := gomatrixserverlib.IsValidCertificate(serverHost, directCert, intermediateCerts)
-		if err != nil {
-			connReport.Errors = append(connReport.Errors, asReportError(err))
-		}
-		connReport.ValidCertificates = valid
+	valid, err := gomatrixserverlib.IsValidCertificate(serverHost, leafCert, intermediateCerts)
+	if err != nil {
+		connReport.Errors = append(connReport.Errors, asReportError(err))
 	}
+	connReport.ValidCertificates = valid
 
 	for _, cert := range connState.PeerCertificates {
 		fingerprint := sha256.Sum256(cert.Raw)
