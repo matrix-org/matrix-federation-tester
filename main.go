@@ -37,6 +37,11 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	serverName := gomatrixserverlib.ServerName(req.URL.Query().Get("server_name"))
+	if len(serverName) == 0 {
+		w.WriteHeader(400)
+		fmt.Printf("Missing server_name.\n")
+		return
+	}
 
 	result, err := JSONReport(serverName)
 	if err != nil {
