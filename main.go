@@ -86,6 +86,7 @@ type ServerReport struct {
 	ConnectionReports map[string]ConnectionReport // The report for each server address we could connect to.
 	ConnectionErrors  map[string]error            // The errors for each server address we couldn't connect to.
 	Version           VersionReport               // The version information for the server
+	FederationOK      bool                        // Summary about whether the run didn't encounter anything that could hamper federation.
 }
 
 // A VersionReport is a combination of data from matrix server's version
@@ -167,6 +168,9 @@ func Report(
 	// Map of network address to connection error.
 	report.ConnectionErrors = make(map[string]error)
 
+	// This would be set to false as soon as one check fails or an error is reported.
+	report.FederationOK = true
+
 	// Host address of the server (can be different from the serverName through well-known)
 	serverHost := serverName
 
@@ -215,8 +219,10 @@ func Report(
 		if connReport, connErr := connCheck(
 			addr, serverHost, serverName, sni,
 		); connErr != nil {
+			report.FederationOK = false
 			report.ConnectionErrors[addr] = connErr
 		} else {
+			report.FederationOK = report.FederationOK && connReport.Checks.AllChecksOK
 			report.ConnectionReports[addr] = *connReport
 		}
 	}
