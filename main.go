@@ -28,32 +28,79 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+	w.Header().Set("Content-Type", "application/json")
 	if req.Method == "OPTIONS" {
 		return
 	}
 	if req.Method != "GET" {
 		w.WriteHeader(405)
-		fmt.Printf("Unsupported method.\n")
+		if err := handleRequestError(w, "Unsupported method"); err != nil {
+			fmt.Printf("Error sending error to client: %s\n", err.Error())
+		}
 		return
 	}
 	serverName := gomatrixserverlib.ServerName(req.URL.Query().Get("server_name"))
 	if len(serverName) == 0 {
 		w.WriteHeader(400)
-		fmt.Printf("Missing server_name.\n")
+		if err := handleRequestError(w, "Missing server_name parameter"); err != nil {
+			fmt.Printf("Error sending error to client: %s\n", err.Error())
+		}
 		return
 	}
 
 	result, err := JSONReport(serverName)
 	if err != nil {
 		w.WriteHeader(500)
-		fmt.Printf("Error Generating Report: %q\n", err.Error())
+		if err = handleRequestError(w, fmt.Sprintf("Error generating report: %s\n", err.Error())); err != nil {
+			fmt.Printf("Error sending error to client: %s\n", err.Error())
+		}
 	} else {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		if _, err = w.Write(result); err != nil {
-			fmt.Printf("Error Generating Report: %q\n", err.Error())
+			fmt.Printf("Error generating report: %q\n", err.Error())
 		}
 	}
+}
+
+// handleRequestError creates an empty ServerReport with the provided message as
+// the top-level Error, thend writes it into a http.ResponseWriter in order to
+// send it to the client. Also prints the error to the standard output.
+// If encoding the ServerReport into JSON bytes, sends the error message to the
+// client as plain text and prints the error from json.Marshal to the standard
+// output.
+// Returns an error if writing to the ResponseWriter failed.
+func handleRequestError(w http.ResponseWriter, errMsg string) error {
+	// Print the error.
+	fmt.Printf("ERR: %s\n", errMsg)
+
+	reportWithError := ServerReport{
+		Error: errMsg,
+	}
+
+	// Encode the response into JSON bytes.
+	encoded, err := json.Marshal(reportWithError)
+	if err != nil {
+		// If encoding into JSON failed, fallback to sending just the error
+		// string as plain text.
+		fmt.Printf("Error when marshalling response: %s, sending in plain text\n", err.Error())
+		w.Header().Set("Content-Type", "text/plain")
+		_, err = w.Write([]byte(errMsg))
+		return err
+	}
+
+	// Indent the JSON response. This is not necessary, but is done for
+	// consistency with when sending a normal report.
+	var buffer bytes.Buffer
+	if err = json.Indent(&buffer, encoded, "", "  "); err != nil {
+		// If indenting failed, fallback to just sending the non-indented
+		// payload.
+		fmt.Printf("Error when indenting response: %s, sending non-indented report\n", err.Error())
+		_, err = w.Write(encoded)
+		return err
+	}
+
+	_, err = w.Write(buffer.Bytes())
+	return err
 }
 
 // JSONReport generates a JSON formatted report for a matrix server.
