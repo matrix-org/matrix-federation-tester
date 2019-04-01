@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/matrix-org/gomatrixserverlib"
@@ -220,18 +221,25 @@ func Report(
 	}
 	report.DNSResult = *dnsResult
 
-	// Iterate through each address and run checks
+	// Iterate through each address and run checks in parallel
+	wg := sync.WaitGroup{}
 	for _, addr := range report.DNSResult.Addrs {
-		if connReport, connErr := connCheck(
-			addr, serverHost, serverName, sni,
-		); connErr != nil {
-			report.FederationOK = false
-			report.ConnectionErrors[addr] = connErr
-		} else {
-			report.FederationOK = report.FederationOK && connReport.Checks.AllChecksOK
-			report.ConnectionReports[addr] = *connReport
-		}
+		wg.Add(1)
+		go func(report *ServerReport, serverHost, serverName gomatrixserverlib.ServerName, addr, sni string) {
+			if connReport, connErr := connCheck(
+				addr, serverHost, serverName, sni,
+			); connErr != nil {
+				report.FederationOK = false
+				report.ConnectionErrors[addr] = connErr
+			} else {
+				report.FederationOK = report.FederationOK && connReport.Checks.AllChecksOK
+				report.ConnectionReports[addr] = *connReport
+			}
+			wg.Done()
+		}(&report, serverHost, serverName, addr, sni)
 	}
+	// Wait for checks to finish
+	wg.Wait()
 
 	return
 }
