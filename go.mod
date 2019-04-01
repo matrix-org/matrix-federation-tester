@@ -5,6 +5,7 @@ require (
 	github.com/matrix-org/gomatrix v0.0.0-20190320223805-54b415d5fa9d // indirect
 	github.com/matrix-org/gomatrixserverlib v0.0.0-20190321150831-a34687d2ceb7
 	github.com/miekg/dns v1.1.6 // indirect
+	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v0.9.2
 	github.com/sirupsen/logrus v1.4.0 // indirect
 	github.com/stretchr/testify v1.3.0 // indirect
