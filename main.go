@@ -321,7 +321,6 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 // fetchKeysDirect fetches the matrix keys for a given server name directly from
 // the given address.
 // Optionally sets a SNI header if ``sni`` is not empty.
-// Optionally sets a timeout to the HTTP client if ``timeout`` isn't 0.
 // Note that this function doesn't check the validity of the certificate(s)
 // served by the server.
 // Returns an error if either sending the request or decoding the JSON response
@@ -330,15 +329,15 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 // Returns the server keys and the state of the TLS connection used to retrieve
 // them.
 func fetchKeysDirect(
-	serverName gomatrixserverlib.ServerName, addr, sni string, timeout time.Duration,
+	serverName gomatrixserverlib.ServerName, addr, sni string,
 ) (*gomatrixserverlib.ServerKeys, *tls.ConnectionState, error) {
 	cli := http.Client{
-		Timeout: timeout, // A 0 timeout means no timeout.
+		Timeout: fetchKeysTimeout,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				ServerName: sni,
 				// TODO: Remove this once Synapse 1.0 is out.
-				InsecureSkipVerify: true, // nolint: gas
+				InsecureSkipVerify: true, // nolint: gas, gosec
 			},
 		},
 	}
@@ -379,7 +378,7 @@ func fetchKeysDirect(
 func connCheck(
 	addr string, serverHost, serverName gomatrixserverlib.ServerName, sni string,
 ) (*ConnectionReport, error) {
-	keys, connState, err := fetchKeysDirect(serverHost, addr, sni, fetchKeysTimeout)
+	keys, connState, err := fetchKeysDirect(serverHost, addr, sni)
 	if err != nil {
 		return nil, err
 	}
