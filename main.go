@@ -238,6 +238,11 @@ func Report(
 	}
 	report.DNSResult = *dnsResult
 
+	// Mark federation as not OK if no address could be found.
+	if len(report.DNSResult.Addrs) == 0 {
+		report.FederationOK = false
+	}
+
 	// Ensure only one thread updates the report at a time.
 	mutex := new(sync.Mutex)
 	wg := sync.WaitGroup{}
