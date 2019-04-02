@@ -276,8 +276,8 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 				hosts[record.Target] = append(hosts[record.Target], *record)
 			}
 
-			// If there isn't a SRV record we can use then fallback to "serverName:8448".
-			if len(hosts) == 0 {
+			// If there is no SRV record, then fallback to "serverName:8448".
+			if len(result.SRVRecords) == 0 {
 				hosts[string(serverName)] = []net.SRV{{
 					Target: string(serverName),
 					Port:   8448,
