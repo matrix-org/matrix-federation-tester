@@ -193,6 +193,8 @@ func Report(
 	report.ConnectionErrors = make(map[string]error)
 
 	// This would be set to false as soon as one check fails or an error is reported.
+	// TODO: We probably should expect it to be false and only set it to true if everything
+	// worked after checking.
 	report.FederationOK = true
 
 	// Host address of the server (can be different from the serverName through well-known)
