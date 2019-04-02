@@ -250,6 +250,11 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 					return nil, err
 				}
 			}
+			// If there isn't a SRV record in DNS then fallback to "serverName:8448".
+			hosts[string(serverName)] = []net.SRV{{
+				Target: string(serverName),
+				Port:   8448,
+			}}
 		} else {
 			// Group the SRV records by target host.
 			for _, record := range result.SRVRecords {
@@ -277,14 +282,6 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 				}
 				hosts[record.Target] = append(hosts[record.Target], *record)
 			}
-		}
-
-		// If there is no SRV record, then fallback to "serverName:8448".
-		if len(result.SRVRecords) == 0 {
-			hosts[string(serverName)] = []net.SRV{{
-				Target: string(serverName),
-				Port:   8448,
-			}}
 		}
 	} else {
 		// There is a explicit port set in the server name.
