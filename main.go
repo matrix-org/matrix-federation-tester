@@ -94,7 +94,6 @@ type ServerReport struct {
 	ConnectionErrors  map[string]error            // The errors for each server address we couldn't connect to.
 	Version           VersionReport               // The version information for the server
 	FederationOK      bool                        // Summary about whether the run didn't encounter anything that could hamper federation.
-	mutex             *sync.Mutex                 // Mutex to ensure only one thread updates the report at a time. Unexported so it doesn't appear in the JSON response.
 }
 
 // A VersionReport is a combination of data from matrix server's version
@@ -170,9 +169,6 @@ type X509CertSummary struct {
 func Report(
 	serverName gomatrixserverlib.ServerName,
 ) (report ServerReport, err error) {
-	// Ensure only one thread updates the report at a time.
-	report.mutex = new(sync.Mutex)
-
 	// Map of network address to report.
 	report.ConnectionReports = make(map[string]ConnectionReport)
 
@@ -225,24 +221,26 @@ func Report(
 	}
 	report.DNSResult = *dnsResult
 
-	// Iterate through each address and run checks in parallel
+	// Ensure only one thread updates the report at a time.
+	mutex := new(sync.Mutex)
 	wg := sync.WaitGroup{}
+	// Iterate through each address and run checks in parallel
 	for _, addr := range report.DNSResult.Addrs {
 		wg.Add(1)
 		go func(report *ServerReport, serverHost, serverName gomatrixserverlib.ServerName, addr, sni string) {
 			defer func() {
-				report.mutex.Unlock()
+				mutex.Unlock()
 				wg.Done()
 			}()
 
 			if connReport, connErr := connCheck(
 				addr, serverHost, serverName, sni,
 			); connErr != nil {
-				report.mutex.Lock()
+				mutex.Lock()
 				report.FederationOK = false
 				report.ConnectionErrors[addr] = connErr
 			} else {
-				report.mutex.Lock()
+				mutex.Lock()
 				report.FederationOK = report.FederationOK && connReport.Checks.AllChecksOK
 				report.ConnectionReports[addr] = *connReport
 			}
