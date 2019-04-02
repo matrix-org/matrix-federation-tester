@@ -301,7 +301,6 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 				if err != nil {
 					result.Hosts[record.Target] = HostResult{
 						CName: cname,
-						Addrs: []string{},
 						Error: err,
 					}
 					continue
@@ -313,7 +312,6 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 				if cname != record.Target {
 					result.Hosts[record.Target] = HostResult{
 						CName: cname,
-						Addrs: []string{},
 						Error: fmt.Errorf("SRV record target %s is a CNAME record, which is forbidden (as per RFC2782)", record.Target),
 					}
 					continue
