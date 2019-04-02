@@ -33,21 +33,38 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 	}
 	if req.Method != "GET" {
 		w.WriteHeader(405)
-		fmt.Printf("Unsupported method.\n")
+		handleRequestError(w, "Unsupported method")
 		return
 	}
 	serverName := gomatrixserverlib.ServerName(req.URL.Query().Get("server_name"))
+	if len(serverName) == 0 {
+		w.WriteHeader(400)
+		handleRequestError(w, "Missing server_name parameter")
+		return
+	}
 
 	result, err := JSONReport(serverName)
 	if err != nil {
 		w.WriteHeader(500)
-		fmt.Printf("Error Generating Report: %q\n", err.Error())
+		handleRequestError(w, fmt.Sprintf("Error generating report: %s\n", err.Error()))
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		if _, err = w.Write(result); err != nil {
-			fmt.Printf("Error Generating Report: %q\n", err.Error())
+			fmt.Printf("Error generating report: %q\n", err.Error())
 		}
+	}
+}
+
+// handleRequestError prints an error message to the standard output then tries
+// to write it to a http.ResponseWriter.
+// If writing failed, prints a message containing the error that came up then to
+// the standard output.
+func handleRequestError(w http.ResponseWriter, errMsg string) {
+	fmt.Printf("ERR: %s\n", errMsg)
+
+	if _, err := w.Write([]byte(errMsg)); err != nil {
+		fmt.Printf("Error sending error to client: %s\n", err.Error())
 	}
 }
 
