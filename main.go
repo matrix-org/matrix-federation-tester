@@ -318,56 +318,6 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 	return &result, nil
 }
 
-// fetchKeysDirect fetches the matrix keys for a given server name directly from
-// the given address.
-// Optionally sets a SNI header if ``sni`` is not empty.
-// Note that this function doesn't check the validity of the certificate(s)
-// served by the server.
-// Returns an error if either sending the request or decoding the JSON response
-// failed. The server responding with a non-200 response also causes an error to
-// be returned.
-// Returns the server keys and the state of the TLS connection used to retrieve
-// them.
-func fetchKeysDirect(
-	serverName gomatrixserverlib.ServerName, addr, sni string,
-) (*gomatrixserverlib.ServerKeys, *tls.ConnectionState, error) {
-	cli := http.Client{
-		Timeout: fetchKeysTimeout,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				ServerName: sni,
-				// TODO: Remove this once Synapse 1.0 is out.
-				InsecureSkipVerify: true, // nolint: gas, gosec
-			},
-		},
-	}
-
-	// Create a GET /_matrix/key/v2/server request.
-	requestURL := "https://" + addr + "/_matrix/key/v2/server"
-	request, err := http.NewRequest("GET", requestURL, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	request.Host = string(serverName)
-	request.Header.Set("Connection", "close")
-	// Send the request and wait for the response.
-	response, err := cli.Do(request)
-	if err != nil {
-		return nil, nil, err
-	}
-	if response != nil {
-		defer response.Body.Close() // nolint: errcheck
-	}
-	if response.StatusCode != http.StatusOK {
-		return nil, nil, fmt.Errorf("Non-200 response %d from remote server", response.StatusCode)
-	}
-	var keys gomatrixserverlib.ServerKeys
-	if err = json.NewDecoder(response.Body).Decode(&keys); err != nil {
-		return nil, nil, errors.Wrap(err, "Unable to decode JSON from remote server")
-	}
-	return &keys, response.TLS, nil
-}
-
 // connCheck generates a connection report for a given address.
 // It's given the address to generate a report for, the server's host (which can
 // differ from the server's name if .well-known delegation is in use, and can be
@@ -423,6 +373,56 @@ func connCheck(
 	connReport.Keys = &raw
 
 	return connReport, nil
+}
+
+// fetchKeysDirect fetches the matrix keys for a given server name directly from
+// the given address.
+// Optionally sets a SNI header if ``sni`` is not empty.
+// Note that this function doesn't check the validity of the certificate(s)
+// served by the server.
+// Returns an error if either sending the request or decoding the JSON response
+// failed. The server responding with a non-200 response also causes an error to
+// be returned.
+// Returns the server keys and the state of the TLS connection used to retrieve
+// them.
+func fetchKeysDirect(
+	serverName gomatrixserverlib.ServerName, addr, sni string,
+) (*gomatrixserverlib.ServerKeys, *tls.ConnectionState, error) {
+	cli := http.Client{
+		Timeout: fetchKeysTimeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				ServerName: sni,
+				// TODO: Remove this once Synapse 1.0 is out.
+				InsecureSkipVerify: true, // nolint: gas, gosec
+			},
+		},
+	}
+
+	// Create a GET /_matrix/key/v2/server request.
+	requestURL := "https://" + addr + "/_matrix/key/v2/server"
+	request, err := http.NewRequest("GET", requestURL, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	request.Host = string(serverName)
+	request.Header.Set("Connection", "close")
+	// Send the request and wait for the response.
+	response, err := cli.Do(request)
+	if err != nil {
+		return nil, nil, err
+	}
+	if response != nil {
+		defer response.Body.Close() // nolint: errcheck
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, nil, fmt.Errorf("Non-200 response %d from remote server", response.StatusCode)
+	}
+	var keys gomatrixserverlib.ServerKeys
+	if err = json.NewDecoder(response.Body).Decode(&keys); err != nil {
+		return nil, nil, errors.Wrap(err, "Unable to decode JSON from remote server")
+	}
+	return &keys, response.TLS, nil
 }
 
 // infoChecks are checks that are not required for federation, just good-to-knows
