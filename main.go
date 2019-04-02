@@ -228,19 +228,18 @@ func Report(
 	for _, addr := range report.DNSResult.Addrs {
 		wg.Add(1)
 		go func(report *ServerReport, serverHost, serverName gomatrixserverlib.ServerName, addr, sni string) {
-			defer func() {
-				mutex.Unlock()
-				wg.Done()
-			}()
+			defer wg.Done()
 
 			if connReport, connErr := connCheck(
 				addr, serverHost, serverName, sni,
 			); connErr != nil {
 				mutex.Lock()
+				defer mutex.Unlock()
 				report.FederationOK = false
 				report.ConnectionErrors[addr] = connErr
 			} else {
 				mutex.Lock()
+				defer mutex.Unlock()
 				report.FederationOK = report.FederationOK && connReport.Checks.AllChecksOK
 				report.ConnectionReports[addr] = *connReport
 			}
