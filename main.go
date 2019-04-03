@@ -193,6 +193,8 @@ func Report(
 	report.ConnectionErrors = make(map[string]error)
 
 	// This would be set to false as soon as one check fails or an error is reported.
+	// TODO: We probably should expect it to be false and only set it to true if everything
+	// worked after checking.
 	report.FederationOK = true
 
 	// Host address of the server (can be different from the serverName through well-known)
@@ -237,6 +239,11 @@ func Report(
 		return
 	}
 	report.DNSResult = *dnsResult
+
+	// Mark federation as not OK if no address could be found.
+	if len(report.DNSResult.Addrs) == 0 {
+		report.FederationOK = false
+	}
 
 	// Ensure only one thread updates the report at a time.
 	mutex := new(sync.Mutex)
@@ -287,15 +294,35 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 				if dnserr.Timeout() {
 					return nil, err
 				}
-				// If there isn't a SRV record in DNS then fallback to "serverName:8448".
-				hosts[string(serverName)] = []net.SRV{{
-					Target: string(serverName),
-					Port:   8448,
-				}}
 			}
+			// If there isn't a SRV record in DNS then fallback to "serverName:8448".
+			hosts[string(serverName)] = []net.SRV{{
+				Target: string(serverName),
+				Port:   8448,
+			}}
 		} else {
 			// Group the SRV records by target host.
 			for _, record := range result.SRVRecords {
+				// Check whether the target is a CNAME record.
+				cname, err := net.LookupCNAME(record.Target)
+				if err != nil {
+					result.Hosts[record.Target] = HostResult{
+						CName: cname,
+						Error: err,
+					}
+					continue
+				}
+				// There is no straightforward way to know whether a the target
+				// is an A record or a CNAME one. Therefore, we use the fact
+				// that LookupCNAME returns the FQDN it was given if it can't
+				// find a CNAME record to follow.
+				if cname != record.Target {
+					result.Hosts[record.Target] = HostResult{
+						CName: cname,
+						Error: fmt.Errorf("SRV record target %s is a CNAME record, which is forbidden (as per RFC2782)", record.Target),
+					}
+					continue
+				}
 				hosts[record.Target] = append(hosts[record.Target], *record)
 			}
 		}
