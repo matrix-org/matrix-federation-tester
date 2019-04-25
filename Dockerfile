@@ -8,6 +8,9 @@ RUN go build
 
 FROM alpine
 
+# We need this otherwise we don't have a good list of CAs
+RUN apk --update add ca-certificates
+
 WORKDIR /root/
 COPY --from=0 /src/matrix-federation-tester .
 
