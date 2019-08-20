@@ -124,8 +124,9 @@ type VersionReport struct {
 // A WellKnownReport is the combination of data from a matrix server's
 // .well-known file, as well as any errors reported during the lookup.
 type WellKnownReport struct {
-	ServerAddress gomatrixserverlib.ServerName `json:"m.server"`
-	Result        string                       `json:"result,omitempty"`
+	ServerAddress  gomatrixserverlib.ServerName `json:"m.server"`
+	Result         string                       `json:"result,omitempty"`
+	CacheExpiresAt int64
 }
 
 // A DNSResult is the result of looking up a matrix server in DNS.
@@ -213,6 +214,7 @@ func Report(
 		// Use well-known as new host
 		serverHost = wellKnownResult.NewAddress
 		report.WellKnownResult.ServerAddress = wellKnownResult.NewAddress
+		report.WellKnownResult.CacheExpiresAt = wellKnownResult.CacheExpiresAt
 
 		// need to revalidate the server name and update the SNI
 		sni, _, valid = gomatrixserverlib.ParseAndValidateServerName(serverHost)
