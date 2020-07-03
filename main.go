@@ -152,13 +152,13 @@ type Info struct{}
 
 // A ConnectionReport is information about a connection made to a matrix server.
 type ConnectionReport struct {
-	Certificates      []X509CertSummary                                          // Summary information for each x509 certificate served up by this server.
-	Cipher            CipherSummary                                              // Summary information on the TLS cipher used by this server.
-	Checks            ConnectionChecks                                           // Checks applied to the server and their results.
-	Errors            []error                                                    // String slice describing any problems encountered during testing.
-	Ed25519VerifyKeys map[gomatrixserverlib.KeyID]gomatrixserverlib.Base64String // The Verify keys for this server or nil if the checks were not ok.
-	Info              Info                                                       // Checks that are not necessary to pass, rather simply informative.
-	Keys              *json.RawMessage                                           // The server key JSON returned by this server.
+	Certificates      []X509CertSummary                                         // Summary information for each x509 certificate served up by this server.
+	Cipher            CipherSummary                                             // Summary information on the TLS cipher used by this server.
+	Checks            ConnectionChecks                                          // Checks applied to the server and their results.
+	Errors            []error                                                   // String slice describing any problems encountered during testing.
+	Ed25519VerifyKeys map[gomatrixserverlib.KeyID]gomatrixserverlib.Base64Bytes // The Verify keys for this server or nil if the checks were not ok.
+	Info              Info                                                      // Checks that are not necessary to pass, rather simply informative.
+	Keys              *json.RawMessage                                          // The server key JSON returned by this server.
 }
 
 // ConnectionChecks represents the result of the checks done on a connection
@@ -177,10 +177,10 @@ type CipherSummary struct {
 
 // A X509CertSummary is a summary of the information in a X509 certificate.
 type X509CertSummary struct {
-	SubjectCommonName string                         // The common name of the subject.
-	IssuerCommonName  string                         // The common name of the issuer.
-	SHA256Fingerprint gomatrixserverlib.Base64String // The SHA256 fingerprint of the certificate.
-	DNSNames          []string                       // The DNS names this certificate is valid for.
+	SubjectCommonName string                        // The common name of the subject.
+	IssuerCommonName  string                        // The common name of the issuer.
+	SHA256Fingerprint gomatrixserverlib.Base64Bytes // The SHA256 fingerprint of the certificate.
+	DNSNames          []string                      // The DNS names this certificate is valid for.
 }
 
 // Report creates a ServerReport for a matrix server.
