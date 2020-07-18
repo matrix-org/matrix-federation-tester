@@ -1,0 +1,26 @@
+run:
+  deadline: 5m
+  skip-dirs:
+    - hooks
+    - scripts
+
+linters:
+  disable-all: true
+  enable:
+   - errcheck
+   - goconst
+   - gocyclo
+   - goimports
+   - golint
+   - gosec
+   - gotype
+   - ineffassign
+   - maligned
+   - misspell
+   - structcheck
+   - testify
+   - unconvert
+   - unparam
+   - varcheck
+   - vet
+   - vetshadow
