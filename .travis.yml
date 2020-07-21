@@ -1,6 +1,5 @@
 language: go
 go:
- - 1.11.x
  - 1.12.x
  - 1.13.x
  - 1.14.x
@@ -8,6 +7,7 @@ go:
 env:
   global:
     - GO111MODULE=on
+    - GODEBUG=tls13=1
 
 script:
  - ./scripts/travis.sh
