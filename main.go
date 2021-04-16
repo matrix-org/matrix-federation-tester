@@ -131,6 +131,7 @@ type WellKnownReport struct {
 
 // A DNSResult is the result of looking up a matrix server in DNS.
 type DNSResult struct {
+	Skipped    bool                  // When the DNS lookup has been skiped due to a port declaration inside the .well-known address.
 	SRVCName   string                // The canonical name for the SRV record in DNS
 	SRVRecords []*net.SRV            // List of SRV record for the matrix server.
 	SRVError   error                 // If there was an error getting the SRV records.
@@ -344,6 +345,7 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 			Target: host,
 			Port:   uint16(port),
 		}}
+		result.Skipped = true
 	}
 
 	// Look up the IP addresses for each host.
