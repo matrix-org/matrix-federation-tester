@@ -206,6 +206,7 @@ func Report(
 	sni, _, valid := gomatrixserverlib.ParseAndValidateServerName(serverHost)
 	if !valid {
 		report.Error = fmt.Sprintf("Invalid server name '%s'", serverHost)
+		report.FederationOK = false
 		return
 	}
 
@@ -221,10 +222,12 @@ func Report(
 		sni, _, valid = gomatrixserverlib.ParseAndValidateServerName(serverHost)
 		if !valid {
 			report.Error = fmt.Sprintf("Invalid server name '%s' in .well-known result", serverHost)
+			report.FederationOK = false
 			return
 		}
 	} else {
 		report.WellKnownResult.Result = err.Error()
+		
 	}
 
 	// Lookup server version
@@ -235,6 +238,7 @@ func Report(
 		report.Version.Version = version.Server.Version
 	} else {
 		report.Version.Error = err.Error()
+		report.FederationOK = false
 	}
 
 	dnsResult, err := lookupServer(serverHost)
