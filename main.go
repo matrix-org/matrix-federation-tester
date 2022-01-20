@@ -227,7 +227,6 @@ func Report(
 		}
 	} else {
 		report.WellKnownResult.Result = err.Error()
-		
 	}
 
 	// Lookup server version
