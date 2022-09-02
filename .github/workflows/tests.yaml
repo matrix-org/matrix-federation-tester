@@ -30,4 +30,10 @@ jobs:
         with:
           go-version: 1.19
 
-      - run: ./scripts/find-lint.sh
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+
+      - name: check spelling
+        run: |
+          go install github.com/client9/misspell/cmd/misspell
+          $(go env GOPATH)/bin/misspell -error src *.md
