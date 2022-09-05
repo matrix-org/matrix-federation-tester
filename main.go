@@ -50,7 +50,7 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	result, err := JSONReport(serverName)
+	result, err := JSONReport(req.Context(), serverName)
 	if err != nil {
 		w.WriteHeader(500)
 		handleRequestError(w, fmt.Sprintf("Error generating report: %s\n", err.Error()))
@@ -77,9 +77,10 @@ func handleRequestError(w http.ResponseWriter, errMsg string) {
 
 // JSONReport generates a JSON formatted report for a matrix server.
 func JSONReport(
+	ctx context.Context,
 	serverName gomatrixserverlib.ServerName,
 ) ([]byte, error) {
-	results, err := Report(serverName)
+	results, err := Report(ctx, serverName)
 	if err != nil {
 		return nil, err
 	}
@@ -186,6 +187,7 @@ type X509CertSummary struct {
 
 // Report creates a ServerReport for a matrix server.
 func Report(
+	ctx context.Context,
 	serverName gomatrixserverlib.ServerName,
 ) (report ServerReport, err error) {
 	// Map of network address to report.
@@ -212,7 +214,7 @@ func Report(
 
 	// Check for .well-known
 	var wellKnownResult *gomatrixserverlib.WellKnownResult
-	if wellKnownResult, err = gomatrixserverlib.LookupWellKnown(serverName); err == nil {
+	if wellKnownResult, err = gomatrixserverlib.LookupWellKnown(ctx, serverName); err == nil {
 		// Use well-known as new host
 		serverHost = wellKnownResult.NewAddress
 		report.WellKnownResult.ServerAddress = wellKnownResult.NewAddress
@@ -231,7 +233,7 @@ func Report(
 
 	// Lookup server version
 	client := gomatrixserverlib.NewClient()
-	version, err := client.GetVersion(context.TODO(), serverHost)
+	version, err := client.GetVersion(ctx, serverHost)
 	if err == nil {
 		report.Version.Name = version.Server.Name
 		report.Version.Version = version.Server.Version
@@ -261,7 +263,7 @@ func Report(
 			defer wg.Done()
 
 			if connReport, connErr := connCheck(
-				addr, serverHost, serverName, sni,
+				ctx, addr, serverHost, serverName, sni,
 			); connErr != nil {
 				mutex.Lock()
 				defer mutex.Unlock()
@@ -384,9 +386,10 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 // serverHost), and the result of a .well-known lookup.
 // Returns an error if the keys for the server couldn't be fetched.
 func connCheck(
+	ctx context.Context,
 	addr string, serverHost, serverName gomatrixserverlib.ServerName, sni string,
 ) (*ConnectionReport, error) {
-	keys, connState, err := fetchKeysDirect(serverHost, addr, sni)
+	keys, connState, err := fetchKeysDirect(ctx, serverHost, addr, sni)
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +438,7 @@ func connCheck(
 
 // fetchKeysDirect fetches the matrix keys for a given server name directly from
 // the given address.
-// Optionally sets a SNI header if ``sni`` is not empty.
+// Optionally sets a SNI header if “sni“ is not empty.
 // Note that this function doesn't check the validity of the certificate(s)
 // served by the server.
 // Returns an error if either sending the request or decoding the JSON response
@@ -444,6 +447,7 @@ func connCheck(
 // Returns the server keys and the state of the TLS connection used to retrieve
 // them.
 func fetchKeysDirect(
+	ctx context.Context,
 	serverName gomatrixserverlib.ServerName, addr, sni string,
 ) (*gomatrixserverlib.ServerKeys, *tls.ConnectionState, error) {
 	cli := http.Client{
@@ -459,7 +463,7 @@ func fetchKeysDirect(
 
 	// Create a GET /_matrix/key/v2/server request.
 	requestURL := "https://" + addr + "/_matrix/key/v2/server"
-	request, err := http.NewRequest("GET", requestURL, nil)
+	request, err := http.NewRequestWithContext(ctx, "GET", requestURL, nil)
 	if err != nil {
 		return nil, nil, err
 	}
