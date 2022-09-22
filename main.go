@@ -99,8 +99,12 @@ func JSONReport(
 func main() {
 	http.HandleFunc("/api/report", prometheus.InstrumentHandlerFunc("report", HandleReport))
 	http.Handle("/metrics", prometheus.Handler())
+	server := &http.Server{
+		Addr:              os.Getenv("BIND_ADDRESS"),
+		ReadHeaderTimeout: 3 * time.Second,
+	}
 	// ListenAndServe always returns a non-nil error so we want to panic here.
-	panic(http.ListenAndServe(os.Getenv("BIND_ADDRESS"), nil))
+	panic(server.ListenAndServe())
 }
 
 // A ServerReport is a report for a matrix server.
