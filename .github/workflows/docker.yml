@@ -4,7 +4,6 @@
 name: Build docker images
 
 on:
-  pull_request:     # TODO: remove me
   push:
     tags: ["v*"]
 
