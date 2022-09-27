@@ -237,7 +237,7 @@ func Report(
 
 	// Lookup server version
 	client := gomatrixserverlib.NewClient()
-	version, err := client.GetVersion(ctx, serverHost)
+	version, err := client.GetVersion(ctx, serverName)
 	if err == nil {
 		report.Version.Name = version.Server.Name
 		report.Version.Version = version.Server.Version
