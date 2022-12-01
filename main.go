@@ -27,9 +27,28 @@ const (
 	fetchKeysTimeout = 10 * time.Second
 )
 
-// HandleReport handles an HTTP request for a JSON report for matrix server.
-// GET /api/report?server_name=matrix.org request.
+type ResponseType = int64
+
+const (
+	ResponseTypeJSON ResponseType = iota
+	ResponseTypeText
+)
+
+// HandleReport handles an HTTP request for a JSON report for a matrix server.
+// Example request: GET /api/report?server_name=matrix.org request.
 func HandleReport(w http.ResponseWriter, req *http.Request) {
+	handleCommon(w, req, ResponseTypeJSON)
+}
+
+// HandleFederationOk handles an HTTP request for a boolean text report for a matrix server.
+// Example request: GET /api/federation-ok?server_name=matrix.org
+func HandleFederationOk(w http.ResponseWriter, req *http.Request) {
+	handleCommon(w, req, ResponseTypeText)
+}
+
+// Write common headers, make sure the incoming request is valid and finally
+// write the response depending on the `ResponseType` accordingly.
+func handleCommon(w http.ResponseWriter, req *http.Request, rt ResponseType) {
 	// Set unrestricted Access-Control headers so that this API can be used by
 	// web apps running in browsers.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -50,15 +69,22 @@ func HandleReport(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	result, err := JSONReport(req.Context(), serverName)
+	result, err := Report(req.Context(), serverName)
 	if err != nil {
 		w.WriteHeader(500)
 		handleRequestError(w, fmt.Sprintf("Error generating report: %s\n", err.Error()))
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		if _, err = w.Write(result); err != nil {
-			fmt.Printf("Error generating report: %q\n", err.Error())
+		return
+	}
+
+	if rt == ResponseTypeJSON {
+		err := writeJSONResponse(w, result)
+		if err != nil {
+			handleRequestError(w, fmt.Sprintf("Error writing response: %s\n", err.Error()))
+		}
+	} else if rt == ResponseTypeText {
+		err := writeTextResponse(w, result)
+		if err != nil {
+			handleRequestError(w, fmt.Sprintf("Error writing response: %s\n", err.Error()))
 		}
 	}
 }
@@ -75,29 +101,48 @@ func handleRequestError(w http.ResponseWriter, errMsg string) {
 	}
 }
 
-// JSONReport generates a JSON formatted report for a matrix server.
-func JSONReport(
-	ctx context.Context,
-	serverName gomatrixserverlib.ServerName,
-) ([]byte, error) {
-	results, err := Report(ctx, serverName)
+// Convert report to JSON bytes and write it as response.
+func writeJSONResponse(
+	w http.ResponseWriter,
+	report ServerReport,
+) error {
+	report.touchUpReport()
+	encoded, err := json.Marshal(report)
 	if err != nil {
-		return nil, err
-	}
-	results.touchUpReport()
-	encoded, err := json.Marshal(results)
-	if err != nil {
-		return nil, err
+		return err
 	}
 	var buffer bytes.Buffer
 	if err = json.Indent(&buffer, encoded, "", "  "); err != nil {
-		fmt.Printf("Error Generating Report: %q\n", err.Error())
+		fmt.Printf("Error Converting Report to bytes: %q\n", err.Error())
 	}
-	return buffer.Bytes(), nil
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	if _, err = w.Write(buffer.Bytes()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Write `report.FederationOK` as upper-cased text response.
+func writeTextResponse(
+	w http.ResponseWriter,
+	report ServerReport,
+) error {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(200)
+	_, err := w.Write([]byte(strings.ToUpper(fmt.Sprintf("%t", report.FederationOK))))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func main() {
 	http.HandleFunc("/api/report", prometheus.InstrumentHandlerFunc("report", HandleReport))
+	http.HandleFunc("/api/federation-ok", prometheus.InstrumentHandlerFunc("federation-ok", HandleFederationOk))
 	http.Handle("/metrics", prometheus.Handler())
 	server := &http.Server{
 		Addr:              os.Getenv("BIND_ADDRESS"),
