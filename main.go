@@ -76,17 +76,15 @@ func handleCommon(w http.ResponseWriter, req *http.Request, rt ResponseType) {
 		return
 	}
 
-	err = nil
 	if rt == ResponseTypeJSON {
-		err = writeJSONResponse(w, result)
-
+		err := writeJSONResponse(w, result)
+		if err != nil {
+			handleRequestError(w, fmt.Sprintf("Error writing response: %s\n", err.Error()))
+		}
 	} else if rt == ResponseTypeText {
-		err = writeTextResponse(w, result)
+		writeTextResponse(w, result)
 	}
 
-	if err != nil {
-		handleRequestError(w, fmt.Sprintf("Error writing response: %s\n", err.Error()))
-	}
 }
 
 // handleRequestError prints an error message to the standard output then tries
@@ -129,7 +127,7 @@ func writeJSONResponse(
 func writeTextResponse(
 	w http.ResponseWriter,
 	report ServerReport,
-) error {
+) {
 	response := []byte(strings.ToUpper(fmt.Sprintf("%t", report.FederationOK)))
 
 	w.Header().Set("Content-Type", "text/plain")
@@ -138,8 +136,6 @@ func writeTextResponse(
 	if err != nil {
 		fmt.Printf("Error writing response to client: %s\n", err.Error())
 	}
-
-	return nil
 }
 
 func main() {
