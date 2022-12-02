@@ -32,9 +32,9 @@ The federation tester may be accessed using the following templated URLs. Please
 https://matrix.org/federationtester/api/report?server_name=<server_name>
 ```
 
-**Simple boolean text response**
+**Plain text response**
 
-Returns just the `FederationOK` bool as plain upper-cased text response.
+Returns `TRUE` if the federation is ok and `FALSE` if it's not ok.
 
 ```
 https://matrix.org/federationtester/api/federation-ok?server_name=<server_name>
