@@ -76,16 +76,16 @@ func handleCommon(w http.ResponseWriter, req *http.Request, rt ResponseType) {
 		return
 	}
 
+	err = nil
 	if rt == ResponseTypeJSON {
-		err := writeJSONResponse(w, result)
-		if err != nil {
-			handleRequestError(w, fmt.Sprintf("Error writing response: %s\n", err.Error()))
-		}
+		err = writeJSONResponse(w, result)
+
 	} else if rt == ResponseTypeText {
-		err := writeTextResponse(w, result)
-		if err != nil {
-			handleRequestError(w, fmt.Sprintf("Error writing response: %s\n", err.Error()))
-		}
+		err = writeTextResponse(w, result)
+	}
+
+	if err != nil {
+		handleRequestError(w, fmt.Sprintf("Error writing response: %s\n", err.Error()))
 	}
 }
 
@@ -113,13 +113,13 @@ func writeJSONResponse(
 	}
 	var buffer bytes.Buffer
 	if err = json.Indent(&buffer, encoded, "", "  "); err != nil {
-		fmt.Printf("Error Converting Report to bytes: %q\n", err.Error())
+		return err
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 	if _, err = w.Write(buffer.Bytes()); err != nil {
-		return err
+		fmt.Printf("Error writing response to client: %s\n", err.Error())
 	}
 
 	return nil
@@ -130,11 +130,13 @@ func writeTextResponse(
 	w http.ResponseWriter,
 	report ServerReport,
 ) error {
+	response := []byte(strings.ToUpper(fmt.Sprintf("%t", report.FederationOK)))
+
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(200)
-	_, err := w.Write([]byte(strings.ToUpper(fmt.Sprintf("%t", report.FederationOK))))
+	_, err := w.Write(response)
 	if err != nil {
-		return err
+		fmt.Printf("Error writing response to client: %s\n", err.Error())
 	}
 
 	return nil
