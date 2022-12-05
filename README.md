@@ -34,7 +34,7 @@ https://matrix.org/federationtester/api/report?server_name=<server_name>
 
 **Plain text response**
 
-Returns `TRUE` if the federation is ok and `FALSE` if it's not ok.
+Returns `GOOD` if the federation is ok and `BAD` if it's not ok.
 
 ```
 https://matrix.org/federationtester/api/federation-ok?server_name=<server_name>

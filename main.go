@@ -123,12 +123,18 @@ func writeJSONResponse(
 	return nil
 }
 
-// Write `report.FederationOK` as upper-cased text response.
+// Write `GOOD` or `BAD` as response depending on the `report.FederationOK` bool.
 func writeTextResponse(
 	w http.ResponseWriter,
 	report ServerReport,
 ) {
-	response := []byte(strings.ToUpper(fmt.Sprintf("%t", report.FederationOK)))
+	text := ""
+	if report.FederationOK {
+		text = "GOOD"
+	} else {
+		text = "BAD"
+	}
+	response := []byte(text)
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(200)
