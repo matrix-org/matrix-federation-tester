@@ -24,8 +24,18 @@ BIND_ADDRESS=:8080 ./matrix-federation-tester
 Using
 -----
 
-The federation tester may be accessed using the following templated URL. Please replace `<server_name>` with your server name (eg: `matrix.org`).
+The federation tester may be accessed using the following templated URLs. Please replace `<server_name>` with your server name (eg: `matrix.org`).
+
+**Full JSON report**
 
 ```
 https://matrix.org/federationtester/api/report?server_name=<server_name>
+```
+
+**Plain text response**
+
+Returns `GOOD` if the federation is ok and `BAD` if it's not ok.
+
+```
+https://matrix.org/federationtester/api/federation-ok?server_name=<server_name>
 ```
