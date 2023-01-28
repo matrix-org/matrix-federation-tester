@@ -346,8 +346,15 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 	hosts := map[string][]net.SRV{}
 	if !strings.Contains(string(serverName), ":") {
 		// If there isn't an explicit port set then try to look up the SRV record.
-		var err error
-		result.SRVCName, result.SRVRecords, err = net.LookupSRV("matrix", "tcp", string(serverName))
+		resolv, err := getAuthoritativeResolver(string(serverName))
+		if err != nil {
+			resolv = net.DefaultResolver
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		result.SRVCName, result.SRVRecords, err = resolv.LookupSRV(ctx, "matrix", "tcp", string(serverName))
 		result.SRVError = err
 
 		if err != nil {
@@ -431,6 +438,36 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 	}
 
 	return &result, nil
+}
+
+// getAuthoritativeResolver returns a resolver querying the authoritative DNS
+// server for the given server.
+func getAuthoritativeResolver(server string) (*net.Resolver, error) {
+	domains := strings.Split(server, ".")
+	if len(domains) < 2 {
+		return nil, fmt.Errorf("failed to get 2nd level domain of server '%s'", server)
+	}
+
+	nsRecords, err := net.LookupNS(fmt.Sprintf("%s.%s", domains[len(domains)-2], domains[len(domains)-1]))
+	if err != nil {
+		return nil, fmt.Errorf("failed to query nameservers: %w", err)
+	}
+
+	if len(nsRecords) == 0 {
+		return nil, fmt.Errorf("no nameservers found for '%s.%s'", domains[len(domains)-2], domains[len(domains)-1])
+	}
+
+	dnsServer := strings.TrimSuffix(nsRecords[0].Host, ".")
+
+	return &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := net.Dialer{
+				Timeout: 3 * time.Second,
+			}
+			return d.DialContext(ctx, network, dnsServer+":53")
+		},
+	}, nil
 }
 
 // connCheck generates a connection report for a given address.
