@@ -19,8 +19,12 @@ import (
 
 	"github.com/matrix-org/gomatrixserverlib"
 
+	"github.com/matrix-org/matrix-federation-tester/promutils"
+
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -145,9 +149,26 @@ func writeTextResponse(
 }
 
 func main() {
-	http.HandleFunc("/api/report", prometheus.InstrumentHandlerFunc("report", HandleReport))
-	http.HandleFunc("/api/federation-ok", prometheus.InstrumentHandlerFunc("federation-ok", HandleFederationOk))
-	http.Handle("/metrics", prometheus.Handler())
+	// Create a new Prometheus registry, because I can't figure out how to get a
+	// handle to the default registry
+	registry := prometheus.NewPedanticRegistry()
+
+	// reinstall the usual metrics
+	registry.MustRegister(
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+
+	// create a middleware for instrumenting our application endpoints with
+	middleware := promutils.NewInstrumentationMiddleware(registry)
+
+	// Register our application endpoints, wrapped with Prometheus instrumentation
+	http.HandleFunc("/api/report", middleware.NewHandler("report", http.HandlerFunc(HandleReport)))
+	http.HandleFunc("/api/federation-ok", middleware.NewHandler("federation-ok", http.HandlerFunc(HandleFederationOk)))
+
+	// Serve Prometheus metrics on /metrics
+	http.Handle("/metrics", promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
+
 	server := &http.Server{
 		Addr:              os.Getenv("BIND_ADDRESS"),
 		ReadHeaderTimeout: 3 * time.Second,
