@@ -368,10 +368,23 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 	if !strings.Contains(string(serverName), ":") {
 		// If there isn't an explicit port set then try to look up the SRV record.
 		var err error
-		result.SRVCName, result.SRVRecords, err = net.LookupSRV("matrix", "tcp", string(serverName))
+		// Try Matrix 1.8 records first
+		result.SRVCName, result.SRVRecords, err = net.LookupSRV("matrix-fed", "tcp", string(serverName))
 		result.SRVError = err
-
+		// Append the deprecated ones too
+		cname, records, err := net.LookupSRV("matrix", "tcp", string(serverName))
+		if result.SRVCName == "" {
+			result.SRVCName = cname
+		}
+		if records != nil {
+			result.SRVRecords = append(result.SRVRecords, records...)
+		}
 		if err != nil {
+			// Any errors we're expecting should have already happened, but just in case...
+			result.SRVError = err
+		}
+
+		if result.SRVError != nil { // use error from result because it might have been from the matrix-fed check
 			if dnserr, ok := err.(*net.DNSError); ok {
 				// If the error is a network timeout talking to the DNS server
 				// then give up now rather than trying to fallback.
