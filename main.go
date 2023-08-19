@@ -372,32 +372,47 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 		result.SRVCName, result.SRVRecords, err = net.LookupSRV("matrix-fed", "tcp", string(serverName))
 		result.SRVError = err
 		// Append the deprecated ones too
-		cname, records, err := net.LookupSRV("matrix", "tcp", string(serverName))
+		cname, records, err2 := net.LookupSRV("matrix", "tcp", string(serverName))
 		if result.SRVCName == "" {
 			result.SRVCName = cname
 		}
 		if records != nil {
 			result.SRVRecords = append(result.SRVRecords, records...)
 		}
-		if err != nil {
-			// Any errors we're expecting should have already happened, but just in case...
-			result.SRVError = err
+
+		// We should have already encountered errors we care about, but overwrite anyways if needed
+		if err2 != nil {
+			result.SRVError = err2
 		}
 
-		if result.SRVError != nil { // use error from result because it might have been from the matrix-fed check
+		missingFedSrv := false
+		if err != nil {
 			if dnserr, ok := err.(*net.DNSError); ok {
-				// If the error is a network timeout talking to the DNS server
-				// then give up now rather than trying to fallback.
-				if dnserr.Timeout() {
-					return nil, err
+				// If the error is because the record is not found, proceed to deprecated SRV fallback.
+				if dnserr.IsNotFound {
+					missingFedSrv = true
+				} else if dnserr.Timeout() { // give up early if the error is a timeout
+					return nil, dnserr
 				}
 			}
-			// If there isn't a SRV record in DNS then fallback to "serverName:8448".
-			hosts[string(serverName)] = []net.SRV{{
-				Target: string(serverName),
-				Port:   8448,
-			}}
-		} else {
+		}
+		addedFallback := false
+		if err2 != nil {
+			if dnserr, ok := err2.(*net.DNSError); ok {
+				// If the error is because the record is not found, proceed to 8448 fallback.
+				if dnserr.IsNotFound && missingFedSrv {
+					hosts[string(serverName)] = []net.SRV{{
+						Target: string(serverName),
+						Port:   8448,
+					}}
+					addedFallback = true
+				} else if dnserr.Timeout() { // give up early if the error is a timeout
+					return nil, dnserr
+				}
+			}
+		}
+
+		if !addedFallback {
 			// Group the SRV records by target host.
 			for _, record := range result.SRVRecords {
 				// Check whether the target is a CNAME record.
