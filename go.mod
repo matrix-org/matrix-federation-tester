@@ -16,5 +16,3 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	golang.org/x/crypto v0.12.0 // indirect
 )
-
-//replace github.com/matrix-org/gomatrixserverlib => ../gomatrixserverlib
