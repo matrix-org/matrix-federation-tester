@@ -45,7 +45,7 @@ func main() {
 	if len(*lookupFlag) > 0 {
 		printReport(*lookupFlag)
 	} else {
-		runHttpServer()
+		runHTTPServer()
 	}
 }
 
@@ -172,8 +172,8 @@ func writeTextResponse(
 	}
 }
 
-// runHttpServer starts an HTTP daemon, serving requests for federation tests. Never exits.
-func runHttpServer() {
+// runHTTPServer starts an HTTP daemon, serving requests for federation tests. Never exits.
+func runHTTPServer() {
 	// Create a new Prometheus registry, because I can't figure out how to get a
 	// handle to the default registry
 	registry := prometheus.NewPedanticRegistry()
