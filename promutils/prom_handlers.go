@@ -23,7 +23,7 @@ type InstrumentationMiddleware interface {
 
 type nopInstrumentationMiddleware struct{}
 
-func (ins nopInstrumentationMiddleware) NewHandler(handlerName string, handler http.Handler) http.HandlerFunc {
+func (ins nopInstrumentationMiddleware) NewHandler(_ string, handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handler.ServeHTTP(w, r)
 	})
