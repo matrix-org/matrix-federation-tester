@@ -1,6 +1,8 @@
 run:
   deadline: 5m
-  skip-dirs:
+
+issues:
+  exclude-dirs:
     - hooks
     - scripts
 
@@ -11,14 +13,12 @@ linters:
    - goconst
    - gocyclo
    - goimports
-   - golint
    - gosec
+   - govet
    - ineffassign
-   - maligned
    - misspell
-   - structcheck
+   - revive
    - unconvert
    - unparam
-   - varcheck
-   - vet
-   - vetshadow
+   - unused
+
