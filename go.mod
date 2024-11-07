@@ -1,6 +1,6 @@
 module github.com/matrix-org/matrix-federation-tester
 
-go 1.15
+go 1.18
 
 require (
 	github.com/matrix-org/gomatrixserverlib v0.0.0-20230131183213-122f1e0e3fa1
