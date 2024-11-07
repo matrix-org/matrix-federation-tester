@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/matrix-org/gomatrixserverlib"
+	"github.com/matrix-org/gomatrixserverlib/fclient"
+	"github.com/matrix-org/gomatrixserverlib/spec"
 
 	"github.com/matrix-org/matrix-federation-tester/promutils"
 
@@ -51,7 +53,7 @@ func main() {
 
 func printReport(serverName string) {
 	ctx := context.Background()
-	report, err := Report(ctx, gomatrixserverlib.ServerName(serverName))
+	report, err := Report(ctx, spec.ServerName(serverName))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to generate report: %v\n", err)
 		os.Exit(1)
@@ -95,7 +97,7 @@ func handleCommon(w http.ResponseWriter, req *http.Request, rt ResponseType) {
 		handleRequestError(w, "Unsupported method")
 		return
 	}
-	serverName := gomatrixserverlib.ServerName(req.URL.Query().Get("server_name"))
+	serverName := spec.ServerName(req.URL.Query().Get("server_name"))
 	if len(serverName) == 0 {
 		w.WriteHeader(400)
 		handleRequestError(w, "Missing server_name parameter")
@@ -224,8 +226,8 @@ type VersionReport struct {
 // A WellKnownReport is the combination of data from a matrix server's
 // .well-known file, as well as any errors reported during the lookup.
 type WellKnownReport struct {
-	ServerAddress  gomatrixserverlib.ServerName `json:"m.server"`
-	Result         string                       `json:"result,omitempty"`
+	ServerAddress  spec.ServerName `json:"m.server"`
+	Result         string          `json:"result,omitempty"`
 	CacheExpiresAt int64
 }
 
@@ -253,13 +255,13 @@ type Info struct{}
 
 // A ConnectionReport is information about a connection made to a matrix server.
 type ConnectionReport struct {
-	Certificates      []X509CertSummary                                         // Summary information for each x509 certificate served up by this server.
-	Cipher            CipherSummary                                             // Summary information on the TLS cipher used by this server.
-	Checks            ConnectionChecks                                          // Checks applied to the server and their results.
-	Errors            []error                                                   // String slice describing any problems encountered during testing.
-	Ed25519VerifyKeys map[gomatrixserverlib.KeyID]gomatrixserverlib.Base64Bytes // The Verify keys for this server or nil if the checks were not ok.
-	Info              Info                                                      // Checks that are not necessary to pass, rather simply informative.
-	Keys              *json.RawMessage                                          // The server key JSON returned by this server.
+	Certificates      []X509CertSummary                            // Summary information for each x509 certificate served up by this server.
+	Cipher            CipherSummary                                // Summary information on the TLS cipher used by this server.
+	Checks            ConnectionChecks                             // Checks applied to the server and their results.
+	Errors            []error                                      // String slice describing any problems encountered during testing.
+	Ed25519VerifyKeys map[gomatrixserverlib.KeyID]spec.Base64Bytes // The Verify keys for this server or nil if the checks were not ok.
+	Info              Info                                         // Checks that are not necessary to pass, rather simply informative.
+	Keys              *json.RawMessage                             // The server key JSON returned by this server.
 }
 
 // ConnectionChecks represents the result of the checks done on a connection
@@ -278,16 +280,16 @@ type CipherSummary struct {
 
 // A X509CertSummary is a summary of the information in a X509 certificate.
 type X509CertSummary struct {
-	SubjectCommonName string                        // The common name of the subject.
-	IssuerCommonName  string                        // The common name of the issuer.
-	SHA256Fingerprint gomatrixserverlib.Base64Bytes // The SHA256 fingerprint of the certificate.
-	DNSNames          []string                      // The DNS names this certificate is valid for.
+	SubjectCommonName string           // The common name of the subject.
+	IssuerCommonName  string           // The common name of the issuer.
+	SHA256Fingerprint spec.Base64Bytes // The SHA256 fingerprint of the certificate.
+	DNSNames          []string         // The DNS names this certificate is valid for.
 }
 
 // Report creates a ServerReport for a matrix server.
 func Report(
 	ctx context.Context,
-	serverName gomatrixserverlib.ServerName,
+	serverName spec.ServerName,
 ) (report ServerReport, err error) {
 	// Map of network address to report.
 	report.ConnectionReports = make(map[string]ConnectionReport)
@@ -304,7 +306,7 @@ func Report(
 	serverHost := serverName
 
 	// Validate the server name, and retrieve domain name to send as SNI to server
-	sni, _, valid := gomatrixserverlib.ParseAndValidateServerName(serverHost)
+	sni, _, valid := spec.ParseAndValidateServerName(serverHost)
 	if !valid {
 		report.Error = fmt.Sprintf("Invalid server name '%s'", serverHost)
 		report.FederationOK = false
@@ -312,15 +314,15 @@ func Report(
 	}
 
 	// Check for .well-known
-	var wellKnownResult *gomatrixserverlib.WellKnownResult
-	if wellKnownResult, err = gomatrixserverlib.LookupWellKnown(ctx, serverName); err == nil {
+	var wellKnownResult *fclient.WellKnownResult
+	if wellKnownResult, err = fclient.LookupWellKnown(ctx, serverName); err == nil {
 		// Use well-known as new host
 		serverHost = wellKnownResult.NewAddress
 		report.WellKnownResult.ServerAddress = wellKnownResult.NewAddress
 		report.WellKnownResult.CacheExpiresAt = wellKnownResult.CacheExpiresAt
 
 		// need to revalidate the server name and update the SNI
-		sni, _, valid = gomatrixserverlib.ParseAndValidateServerName(serverHost)
+		sni, _, valid = spec.ParseAndValidateServerName(serverHost)
 		if !valid {
 			report.Error = fmt.Sprintf("Invalid server name '%s' in .well-known result", serverHost)
 			report.FederationOK = false
@@ -331,8 +333,8 @@ func Report(
 	}
 
 	// Lookup server version
-	client := gomatrixserverlib.NewClient(
-		gomatrixserverlib.WithWellKnownSRVLookups(true),
+	client := fclient.NewClient(
+		fclient.WithWellKnownSRVLookups(true),
 	)
 	version, err := client.GetVersion(ctx, serverName)
 	if err == nil {
@@ -360,7 +362,7 @@ func Report(
 	// Iterate through each address and run checks in parallel
 	for _, addr := range report.DNSResult.Addrs {
 		wg.Add(1)
-		go func(report *ServerReport, serverHost, serverName gomatrixserverlib.ServerName, addr, sni string) {
+		go func(report *ServerReport, serverHost, serverName spec.ServerName, addr, sni string) {
 			defer wg.Done()
 
 			if connReport, connErr := connCheck(
@@ -385,7 +387,7 @@ func Report(
 }
 
 // lookupServer looks up a matrix server in DNS.
-func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) { // nolint: gocyclo
+func lookupServer(serverName spec.ServerName) (*DNSResult, error) { // nolint: gocyclo
 	var result DNSResult
 	result.Hosts = map[string]HostResult{}
 
@@ -488,7 +490,7 @@ func lookupServer(serverName gomatrixserverlib.ServerName) (*DNSResult, error) {
 // Returns an error if the keys for the server couldn't be fetched.
 func connCheck(
 	ctx context.Context,
-	addr string, serverHost, serverName gomatrixserverlib.ServerName, sni string,
+	addr string, serverHost, serverName spec.ServerName, sni string,
 ) (*ConnectionReport, error) {
 	keys, connState, err := fetchKeysDirect(ctx, serverHost, addr, sni)
 	if err != nil {
@@ -508,7 +510,7 @@ func connCheck(
 		intermediateCerts.AddCert(cert)
 	}
 
-	valid, err := gomatrixserverlib.IsValidCertificate(serverHost, leafCert, intermediateCerts)
+	valid, err := isValidCertificate(serverHost, leafCert, intermediateCerts)
 	if err != nil {
 		connReport.Errors = append(connReport.Errors, asReportError(err))
 	}
@@ -537,6 +539,26 @@ func connCheck(
 	return connReport, nil
 }
 
+// isValidCertificate checks if the given x509 certificate can be verified using
+// system root CAs and an optional pool of intermediate CAs.
+func isValidCertificate(serverName spec.ServerName, c *x509.Certificate, intermediates *x509.CertPool) (valid bool, err error) {
+	host, _, isValid := spec.ParseAndValidateServerName(serverName)
+	if !isValid {
+		err = fmt.Errorf("%q is not a valid serverName", serverName)
+		return false, err
+	}
+
+	// Check certificate chain validity
+	verificationOpts := x509.VerifyOptions{
+		// Certificate.Verify appears to handle IP addresses optionally surrounded by square brackets.
+		DNSName:       host,
+		Intermediates: intermediates,
+	}
+	roots, err := c.Verify(verificationOpts)
+
+	return len(roots) > 0, err
+}
+
 // fetchKeysDirect fetches the matrix keys for a given server name directly from
 // the given address.
 // Optionally sets a SNI header if “sni“ is not empty.
@@ -549,7 +571,7 @@ func connCheck(
 // them.
 func fetchKeysDirect(
 	ctx context.Context,
-	serverName gomatrixserverlib.ServerName, addr, sni string,
+	serverName spec.ServerName, addr, sni string,
 ) (*gomatrixserverlib.ServerKeys, *tls.ConnectionState, error) {
 	cli := http.Client{
 		Timeout: fetchKeysTimeout,
