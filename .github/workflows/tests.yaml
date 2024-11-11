@@ -35,5 +35,5 @@ jobs:
 
       - name: check spelling
         run: |
-          go get github.com/client9/misspell/cmd/misspell
+          go install github.com/client9/misspell/cmd/misspell@latest
           $(go env GOPATH)/bin/misspell -error src *.md
