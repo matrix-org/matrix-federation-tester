@@ -6,7 +6,7 @@ Checks that federation is correctly configured on a matrix server.
 Building
 --------
 
-Requires [Go](https://golang.org/) 1.15.
+Requires [Go](https://golang.org/) 1.18.
 
 ```bash
 git clone https://github.com/matrix-org/matrix-federation-tester
