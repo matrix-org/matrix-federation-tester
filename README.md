@@ -6,7 +6,7 @@ Checks that federation is correctly configured on a matrix server.
 Building
 --------
 
-Requires [Go](https://golang.org/) 1.15.
+Requires [Go](https://golang.org/) 1.18.
 
 ```bash
 git clone https://github.com/matrix-org/matrix-federation-tester
@@ -17,12 +17,22 @@ go build
 Running
 -------
 
+An HTTP daemon can be started as follows:
+
 ```bash
 BIND_ADDRESS=:8080 ./matrix-federation-tester
 ```
 
-Using
------
+Alternatively, the federation tester can be used from the commandline via the
+`-lookup` parameter:
+
+```
+./matrix-federation-tester -lookup <server_name>
+```
+
+
+HTTP API
+--------
 
 The federation tester may be accessed using the following templated URLs. Please replace `<server_name>` with your server name (eg: `matrix.org`).
 

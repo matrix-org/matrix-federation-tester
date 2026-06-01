@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
@@ -39,6 +40,34 @@ const (
 	ResponseTypeJSON ResponseType = iota
 	ResponseTypeText
 )
+
+func main() {
+	lookupFlag := flag.String("lookup", "", "Name of homeserver to look up, instead of starting an HTTP server")
+	flag.Parse()
+	if len(*lookupFlag) > 0 {
+		printReport(*lookupFlag)
+	} else {
+		runHTTPServer()
+	}
+}
+
+func printReport(serverName string) {
+	ctx := context.Background()
+	report, err := Report(ctx, spec.ServerName(serverName))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to generate report: %v\n", err)
+		os.Exit(1)
+	}
+
+	json, err := report.toJSON()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to serialize report: %v\n", err)
+		os.Exit(1)
+	}
+
+	os.Stdout.Write(json)
+	os.Stdout.WriteString("\n")
+}
 
 // HandleReport handles an HTTP request for a JSON report for a matrix server.
 // Example request: GET /api/report?server_name=matrix.org request.
@@ -110,19 +139,14 @@ func writeJSONResponse(
 	w http.ResponseWriter,
 	report ServerReport,
 ) error {
-	report.touchUpReport()
-	encoded, err := json.Marshal(report)
+	json, err := report.toJSON()
 	if err != nil {
-		return err
-	}
-	var buffer bytes.Buffer
-	if err = json.Indent(&buffer, encoded, "", "  "); err != nil {
 		return err
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
-	if _, err = w.Write(buffer.Bytes()); err != nil {
+	if _, err = w.Write(json); err != nil {
 		fmt.Printf("Error writing response to client: %s\n", err.Error())
 	}
 
@@ -150,7 +174,8 @@ func writeTextResponse(
 	}
 }
 
-func main() {
+// runHTTPServer starts an HTTP daemon, serving requests for federation tests. Never exits.
+func runHTTPServer() {
 	// Create a new Prometheus registry, because I can't figure out how to get a
 	// handle to the default registry
 	registry := prometheus.NewPedanticRegistry()
@@ -542,6 +567,26 @@ func connCheck(
 	return connReport, nil
 }
 
+// isValidCertificate checks if the given x509 certificate can be verified using
+// system root CAs and an optional pool of intermediate CAs.
+func isValidCertificate(serverName spec.ServerName, c *x509.Certificate, intermediates *x509.CertPool) (valid bool, err error) {
+	host, _, isValid := spec.ParseAndValidateServerName(serverName)
+	if !isValid {
+		err = fmt.Errorf("%q is not a valid serverName", serverName)
+		return false, err
+	}
+
+	// Check certificate chain validity
+	verificationOpts := x509.VerifyOptions{
+		// Certificate.Verify appears to handle IP addresses optionally surrounded by square brackets.
+		DNSName:       host,
+		Intermediates: intermediates,
+	}
+	roots, err := c.Verify(verificationOpts)
+
+	return len(roots) > 0, err
+}
+
 // fetchKeysDirect fetches the matrix keys for a given server name directly from
 // the given address.
 // Optionally sets a SNI header if “sni“ is not empty.
@@ -628,23 +673,18 @@ func (report *ServerReport) touchUpReport() {
 	}
 }
 
-// isValidCertificate is sourced from an old version of gomatrixserverlib
-func isValidCertificate(serverName spec.ServerName, c *x509.Certificate, intermediates *x509.CertPool) (valid bool, err error) {
-	host, _, isValid := spec.ParseAndValidateServerName(serverName)
-	if !isValid {
-		err = fmt.Errorf("%q is not a valid serverName", serverName)
-		return false, err
+// toJSON serializes the ServerReport to JSON.
+func (report *ServerReport) toJSON() ([]byte, error) {
+	report.touchUpReport()
+	encoded, err := json.Marshal(report)
+	if err != nil {
+		return nil, err
 	}
-
-	// Check certificate chain validity
-	verificationOpts := x509.VerifyOptions{
-		// Certificate.Verify appears to handle IP addresses optionally surrounded by square brackets.
-		DNSName:       host,
-		Intermediates: intermediates,
+	var buffer bytes.Buffer
+	if err = json.Indent(&buffer, encoded, "", "  "); err != nil {
+		return nil, err
 	}
-	roots, err := c.Verify(verificationOpts)
-
-	return len(roots) > 0, err
+	return buffer.Bytes(), nil
 }
 
 // enumToString converts a uint16 enum into a human readable string using a fixed mapping.
